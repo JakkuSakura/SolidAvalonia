@@ -57,6 +57,14 @@ public class CounterView : SolidControl
         Content = Centered(counterCard, maxWidth: 400);
 
         // 4. Set up reactive effects
+        
+        Subscribe(stepInput.GetObservable(NumericUpDown.ValueProperty), 
+            value => setStep(value.HasValue ? (int)value.Value : 1));
+
+        incrementButton.Click += (_, _) => setCount(count() + step());
+        decrementButton.Click += (_, _) => setCount(count() - step());
+        resetButton.Click += (_, _) => setCount(0);
+        
         CreateEffect(() => display.Text = displayText());
 
         CreateEffect(() =>
@@ -75,15 +83,6 @@ public class CounterView : SolidControl
                                        count() == 0 ? Brushes.DarkBlue : Brushes.DarkRed;
         });
 
-        // Event handlers
-        CreateEventEffect(() =>
-        {
-            Subscribe(stepInput.GetObservable(NumericUpDown.ValueProperty), 
-                     value => setStep(value.HasValue ? (int)value.Value : 1));
-
-            incrementButton.Click += (_, _) => setCount(count() + step());
-            decrementButton.Click += (_, _) => setCount(count() - step());
-            resetButton.Click += (_, _) => setCount(0);
-        });
+        
     }
 }

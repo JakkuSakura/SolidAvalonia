@@ -96,19 +96,7 @@ public class SolidControl : UserControl, IDisposable
             
         _effects.Add(subscription);
     }
-
-    protected void CreateEventEffect(Action effect)
-    {
-        try
-        {
-            effect();
-        }
-        catch (Exception ex)
-        {
-            HandleError($"Event effect error: {ex.Message}");
-        }
-    }
-
+    
     protected void Subscribe<T>(IObservable<T> observable, Action<T> onNext)
     {
         var subscription = observable.Subscribe(onNext);
