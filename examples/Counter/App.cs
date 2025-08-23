@@ -8,7 +8,7 @@ public class App : Application
 {
     public override void Initialize()
     {
-        AvaloniaXamlLoader.Load(this);
+        // No XAML to load as we're using a code-only approach
     }
 
     public override void OnFrameworkInitializationCompleted()

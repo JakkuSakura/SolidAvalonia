@@ -15,4 +15,10 @@
   <ItemGroup>
     <Folder Include="src\"/>
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="examples\**" />
+    <EmbeddedResource Remove="examples\**" />
+    <None Remove="examples\**" />
+  </ItemGroup>
 </Project>
