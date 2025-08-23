@@ -74,7 +74,7 @@ public class CounterView : SolidControl
             textAlignment: TextAlignment.Center
         );
 
-        // Create layout using helpers
+        // // Create layout using helpers
         var stepSection = this.Section("Step Size:", stepInput, spacing: 5);
         var buttonRow = this.HStack(spacing: 10, margin: 0, decrementButton, resetButton, incrementButton);
         

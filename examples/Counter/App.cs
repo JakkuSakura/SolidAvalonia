@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Themes.Simple;
 
 namespace Counter;
 
@@ -8,7 +9,7 @@ public class App : Application
 {
     public override void Initialize()
     {
-        // No XAML to load as we're using a code-only approach
+        Styles.Add(new SimpleTheme());
     }
 
     public override void OnFrameworkInitializationCompleted()
