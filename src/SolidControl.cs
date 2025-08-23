@@ -4,7 +4,6 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Avalonia.Controls;
 using System.Reactive.Disposables;
-using Avalonia.Threading;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia;
@@ -12,96 +11,297 @@ using Avalonia.ReactiveUI;
 
 namespace SolidAvalonia;
 
+/// <summary>
+/// Base class for creating reactive Avalonia controls with SolidJS-like API
+/// </summary>
 public class SolidControl : UserControl, IDisposable
 {
-    // Signal storage with proper disposal tracking
-    private readonly Dictionary<string, IDisposable> _signals = new();
-    private readonly CompositeDisposable _effects = new();
-    private readonly CompositeDisposable _subscriptions = new();
+    private readonly CompositeDisposable _disposables = new();
+    private readonly DependencyTracker _dependencyTracker = new();
     private bool _disposed;
 
-    #region Signal Methods (unchanged)
+    #region Dependency Tracking System
+
+    /// <summary>
+    /// Tracks dependencies for reactive computations
+    /// </summary>
+    private class DependencyTracker
+    {
+        private readonly Stack<HashSet<IReactiveNode>> _trackingStack = new();
+
+        public void StartTracking(HashSet<IReactiveNode> dependencies)
+        {
+            _trackingStack.Push(dependencies);
+        }
+
+        public void StopTracking()
+        {
+            if (_trackingStack.Count > 0)
+                _trackingStack.Pop();
+        }
+
+        public void RegisterDependency(IReactiveNode node)
+        {
+            if (_trackingStack.Count > 0)
+            {
+                _trackingStack.Peek().Add(node);
+            }
+        }
+
+        public bool IsTracking => _trackingStack.Count > 0;
+    }
+
+    /// <summary>
+    /// Base interface for reactive nodes
+    /// </summary>
+    private interface IReactiveNode : IDisposable
+    {
+        IObservable<object?> Changed { get; }
+    }
+
+    /// <summary>
+    /// Signal implementation with dependency tracking
+    /// </summary>
+    private class Signal<T> : IReactiveNode
+    {
+        private readonly BehaviorSubject<T> _subject;
+        private readonly DependencyTracker _tracker;
+        private readonly Subject<object?> _changed = new();
+
+        public Signal(T initialValue, DependencyTracker tracker)
+        {
+            _subject = new BehaviorSubject<T>(initialValue);
+            _tracker = tracker;
+
+            _subject.Skip(1).Subscribe(_ => _changed.OnNext(null));
+        }
+
+        public T Get()
+        {
+            _tracker.RegisterDependency(this);
+            return _subject.Value;
+        }
+
+        public void Set(T value)
+        {
+            if (!EqualityComparer<T>.Default.Equals(_subject.Value, value))
+            {
+                _subject.OnNext(value);
+            }
+        }
+
+        public IObservable<object?> Changed => _changed;
+
+        public void Dispose()
+        {
+            _subject?.Dispose();
+            _changed?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Memo implementation with automatic dependency tracking
+    /// </summary>
+    private class Memo<T> : IReactiveNode
+    {
+        private readonly Func<T> _computation;
+        private readonly DependencyTracker _tracker;
+        private readonly BehaviorSubject<T> _value;
+        private readonly Subject<object?> _changed = new();
+        private readonly CompositeDisposable _subscriptions = new();
+        private HashSet<IReactiveNode> _dependencies = new();
+
+        public Memo(Func<T> computation, DependencyTracker tracker)
+        {
+            _computation = computation;
+            _tracker = tracker;
+
+            // Initial computation
+            var initialValue = ComputeWithTracking();
+            _value = new BehaviorSubject<T>(initialValue);
+
+            _value.Skip(1).Subscribe(_ => _changed.OnNext(null));
+        }
+
+        private T ComputeWithTracking()
+        {
+            // Clear old subscriptions
+            _subscriptions.Clear();
+
+            // Track dependencies
+            var newDependencies = new HashSet<IReactiveNode>();
+            _tracker.StartTracking(newDependencies);
+
+            T result;
+            try
+            {
+                result = _computation();
+            }
+            finally
+            {
+                _tracker.StopTracking();
+            }
+
+            // Subscribe to new dependencies
+            foreach (var dep in newDependencies)
+            {
+                var subscription = dep.Changed.Subscribe(_ => Recompute());
+                _subscriptions.Add(subscription);
+            }
+
+            _dependencies = newDependencies;
+            return result;
+        }
+
+        private void Recompute()
+        {
+            var newValue = ComputeWithTracking();
+            if (!EqualityComparer<T>.Default.Equals(_value.Value, newValue))
+            {
+                _value.OnNext(newValue);
+            }
+        }
+
+        public T Get()
+        {
+            _tracker.RegisterDependency(this);
+            return _value.Value;
+        }
+
+        public IObservable<object?> Changed => _changed;
+
+        public void Dispose()
+        {
+            _subscriptions?.Dispose();
+            _value?.Dispose();
+            _changed?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Effect implementation with automatic dependency tracking
+    /// </summary>
+    private class Effect : IDisposable
+    {
+        private readonly Action _effect;
+        private readonly DependencyTracker _tracker;
+        private readonly CompositeDisposable _subscriptions = new();
+        private HashSet<IReactiveNode> _dependencies = new();
+
+        public Effect(Action effect, DependencyTracker tracker)
+        {
+            _effect = effect;
+            _tracker = tracker;
+        }
+
+        public void Run()
+        {
+            // Clear old subscriptions
+            _subscriptions.Clear();
+
+            // Track dependencies
+            var newDependencies = new HashSet<IReactiveNode>();
+            _tracker.StartTracking(newDependencies);
+
+            try
+            {
+                // Run on UI thread if needed
+                if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                {
+                    _effect();
+                }
+                else
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(_effect).Wait();
+                }
+            }
+            finally
+            {
+                _tracker.StopTracking();
+            }
+
+            // Subscribe to new dependencies
+            foreach (var dep in newDependencies)
+            {
+                var subscription = dep.Changed
+                    .Throttle(TimeSpan.FromMilliseconds(16)) // 60 FPS max
+                    .ObserveOn(AvaloniaScheduler.Instance)
+                    .Subscribe(_ => Run());
+                _subscriptions.Add(subscription);
+            }
+
+            _dependencies = newDependencies;
+        }
+
+        public void Dispose()
+        {
+            _subscriptions.Dispose();
+        }
+    }
+
+    #endregion
+
+    #region Signal System Public API
+
+    /// <summary>
+    /// Creates a reactive signal with getter and setter
+    /// </summary>
     protected (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
-        var subject = new BehaviorSubject<T>(initialValue);
-        var key = Guid.NewGuid().ToString();
-        _signals[key] = subject;
+        var signal = new Signal<T>(initialValue, _dependencyTracker);
+        _disposables.Add(signal);
 
-        return (() => subject.Value, value => 
-        {
-            if (!_disposed)
-                subject.OnNext(value);
-        });
+        return (signal.Get, signal.Set);
     }
 
-    protected Func<T?> CreateMemo<T>(Func<T> computation)
+    /// <summary>
+    /// Creates a computed value that automatically updates when dependencies change
+    /// </summary>
+    protected Func<T> CreateMemo<T>(Func<T> computation)
     {
-        var memoSubject = new BehaviorSubject<T?>(default(T));
-        var key = Guid.NewGuid().ToString();
-        _signals[key] = memoSubject;
+        var memo = new Memo<T>(computation, _dependencyTracker);
+        _disposables.Add(memo);
 
-        try
-        {
-            var initialValue = computation();
-            memoSubject.OnNext(initialValue);
-        }
-        catch (Exception ex)
-        {
-            HandleError($"Memo computation error: {ex.Message}");
-        }
-
-        var subscription = Observable
-            .Interval(TimeSpan.FromMilliseconds(100))
-            .ObserveOn(AvaloniaScheduler.Instance)
-            .Subscribe(_ =>
-            {
-                if (_disposed) return;
-                
-                try
-                {
-                    var newValue = computation();
-                    if (!EqualityComparer<T>.Default.Equals(memoSubject.Value, newValue))
-                    {
-                        memoSubject.OnNext(newValue);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    HandleError($"Memo computation error: {ex.Message}");
-                }
-            });
-
-        _effects.Add(subscription);
-        return () => _disposed ? default(T) : memoSubject.Value;
+        return memo.Get;
     }
 
+    /// <summary>
+    /// Creates an effect that runs when dependencies change
+    /// </summary>
     protected void CreateEffect(Action effect)
     {
-        var subscription = Observable
-            .Interval(TimeSpan.FromMilliseconds(50))
-            .ObserveOn(AvaloniaScheduler.Instance)
-            .Subscribe(_ =>
-            {
-                if (_disposed) return;
-                
-                try
-                {
-                    effect();
-                }
-                catch (Exception ex)
-                {
-                    HandleError($"Effect error: {ex.Message}");
-                }
-            });
-            
-        _effects.Add(subscription);
+        var effectWrapper = new Effect(effect, _dependencyTracker);
+        _disposables.Add(effectWrapper);
+
+        // Run immediately
+        effectWrapper.Run();
     }
-    
+
+    /// <summary>
+    /// Subscribe to an observable
+    /// </summary>
     protected void Subscribe<T>(IObservable<T> observable, Action<T> onNext)
     {
-        var subscription = observable.Subscribe(onNext);
-        _subscriptions.Add(subscription);
+        var subscription = observable
+            .ObserveOn(AvaloniaScheduler.Instance)
+            .Subscribe(value =>
+            {
+                if (!_disposed)
+                {
+                    try
+                    {
+                        onNext(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        HandleError($"Subscription error: {ex.Message}");
+                    }
+                }
+            });
+
+        _disposables.Add(subscription);
     }
+
     #endregion
 
     #region Layout Helpers
@@ -149,7 +349,8 @@ public class SolidControl : UserControl, IDisposable
     /// <summary>
     /// Creates a card-like container with border, background, and padding
     /// </summary>
-    protected Border Card(Control content, IBrush? background = null, double cornerRadius = 8, double padding = 15, double margin = 5)
+    protected Border Card(Control content, IBrush? background = null, double cornerRadius = 8, double padding = 15,
+        double margin = 5)
     {
         return new Border
         {
@@ -190,40 +391,36 @@ public class SolidControl : UserControl, IDisposable
         var cols = columnDefinitions.Split(',');
         foreach (var col in cols)
         {
-            if (col.Trim() == "*")
+            var trimmed = col.Trim();
+            if (trimmed == "*")
                 grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-            else if (col.Trim().EndsWith("*"))
+            else if (trimmed.EndsWith("*"))
             {
-                var factor = double.Parse(col.Trim().TrimEnd('*'));
-                grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(factor, GridUnitType.Star)));
+                if (double.TryParse(trimmed.TrimEnd('*'), out var factor))
+                    grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(factor, GridUnitType.Star)));
             }
-            else if (col.Trim().ToLower() == "auto")
+            else if (trimmed.Equals("auto", StringComparison.OrdinalIgnoreCase))
                 grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-            else
-            {
-                var width = double.Parse(col.Trim());
+            else if (double.TryParse(trimmed, out var width))
                 grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(width)));
-            }
         }
 
         // Parse row definitions
         var rows = rowDefinitions.Split(',');
         foreach (var row in rows)
         {
-            if (row.Trim() == "*")
+            var trimmed = row.Trim();
+            if (trimmed == "*")
                 grid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
-            else if (row.Trim().EndsWith("*"))
+            else if (trimmed.EndsWith("*"))
             {
-                var factor = double.Parse(row.Trim().TrimEnd('*'));
-                grid.RowDefinitions.Add(new RowDefinition(new GridLength(factor, GridUnitType.Star)));
+                if (double.TryParse(trimmed.TrimEnd('*'), out var factor))
+                    grid.RowDefinitions.Add(new RowDefinition(new GridLength(factor, GridUnitType.Star)));
             }
-            else if (row.Trim().ToLower() == "auto")
+            else if (trimmed.Equals("auto", StringComparison.OrdinalIgnoreCase))
                 grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-            else
-            {
-                var height = double.Parse(row.Trim());
+            else if (double.TryParse(trimmed, out var height))
                 grid.RowDefinitions.Add(new RowDefinition(new GridLength(height)));
-            }
         }
 
         return grid;
@@ -232,7 +429,8 @@ public class SolidControl : UserControl, IDisposable
     /// <summary>
     /// Helper to add a control to a grid at specific position
     /// </summary>
-    protected T GridChild<T>(T control, int row = 0, int column = 0, int rowSpan = 1, int columnSpan = 1) where T : Control
+    protected T GridChild<T>(T control, int row = 0, int column = 0, int rowSpan = 1, int columnSpan = 1)
+        where T : Control
     {
         Grid.SetRow(control, row);
         Grid.SetColumn(control, column);
@@ -244,8 +442,8 @@ public class SolidControl : UserControl, IDisposable
     /// <summary>
     /// Creates a button with consistent styling
     /// </summary>
-    protected Button StyledButton(string content, double width = double.NaN, double height = 35, 
-                                 IBrush? background = null, IBrush? foreground = null)
+    protected Button StyledButton(string content, Action? onClick = null, double width = double.NaN, double height = 35,
+        IBrush? background = null, IBrush? foreground = null)
     {
         var button = new Button
         {
@@ -264,6 +462,9 @@ public class SolidControl : UserControl, IDisposable
 
         if (foreground != null)
             button.Foreground = foreground;
+
+        if (onClick != null)
+            button.Click += (_, _) => onClick();
 
         return button;
     }
@@ -288,8 +489,8 @@ public class SolidControl : UserControl, IDisposable
     /// <summary>
     /// Creates a styled text block
     /// </summary>
-    protected TextBlock StyledText(string text = "", double fontSize = 14, FontWeight fontWeight = FontWeight.Normal, 
-                                  IBrush? foreground = null, HorizontalAlignment alignment = HorizontalAlignment.Left)
+    protected TextBlock StyledText(string text = "", double fontSize = 14, FontWeight fontWeight = FontWeight.Normal,
+        IBrush? foreground = null, HorizontalAlignment alignment = HorizontalAlignment.Left)
     {
         var textBlock = new TextBlock
         {
@@ -336,15 +537,14 @@ public class SolidControl : UserControl, IDisposable
 
     #endregion
 
+    #region Lifecycle
+
     protected virtual void HandleError(string errorMessage)
     {
-        Console.WriteLine(errorMessage);
+        System.Diagnostics.Debug.WriteLine($"[SolidControl Error] {errorMessage}");
     }
 
-    protected int ActiveSignalCount => _signals.Count;
-    protected int ActiveEffectCount => _effects.Count;
-
-    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         Dispose();
         base.OnDetachedFromVisualTree(e);
@@ -353,18 +553,13 @@ public class SolidControl : UserControl, IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        
+
         _disposed = true;
-        
-        foreach (var signal in _signals.Values)
-        {
-            signal?.Dispose();
-        }
-        _signals.Clear();
-        
-        _effects?.Dispose();
-        _subscriptions?.Dispose();
-        
+        _disposables.Dispose();
+
         GC.SuppressFinalize(this);
     }
+
+    #endregion
 }
+
