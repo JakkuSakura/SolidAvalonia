@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Declarative;
 
 namespace SolidAvalonia.Mixins;
 
@@ -13,7 +14,7 @@ public static class GridLayoutExtensions
     /// <summary>
     /// Creates a responsive grid layout
     /// </summary>
-    public static Grid CreateGrid(this SolidControl control, string columnDefinitions = "*", string rowDefinitions = "*")
+    public static Grid CreateGrid(this SolidControl _, string columnDefinitions = "*", string rowDefinitions = "*")
     {
         var grid = new Grid();
 
@@ -59,7 +60,7 @@ public static class GridLayoutExtensions
     /// <summary>
     /// Helper to add a control to a grid at specific position
     /// </summary>
-    public static T GridChild<T>(this SolidControl control, T gridChild, int row = 0, int column = 0, int rowSpan = 1, int columnSpan = 1)
+    public static T GridChild<T>(this SolidControl _, T gridChild, int row = 0, int column = 0, int rowSpan = 1, int columnSpan = 1)
         where T : Control
     {
         Grid.SetRow(gridChild, row);

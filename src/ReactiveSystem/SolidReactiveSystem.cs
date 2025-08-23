@@ -4,6 +4,7 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Avalonia.ReactiveUI;
+using Avalonia.Threading;
 
 namespace SolidAvalonia.ReactiveSystem;
 
@@ -200,13 +201,13 @@ public class SolidReactiveSystem : IReactiveSystem
             try
             {
                 // Run on UI thread if needed
-                if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                if (Dispatcher.UIThread.CheckAccess())
                 {
                     _effect();
                 }
                 else
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(_effect).Wait();
+                    Dispatcher.UIThread.InvokeAsync(_effect).Wait();
                 }
             }
             finally
@@ -267,31 +268,6 @@ public class SolidReactiveSystem : IReactiveSystem
 
         // Run immediately
         effectWrapper.Run();
-    }
-
-    /// <summary>
-    /// Subscribe to an observable
-    /// </summary>
-    public void Subscribe<T>(IObservable<T> observable, Action<T> onNext)
-    {
-        var subscription = observable
-            .ObserveOn(AvaloniaScheduler.Instance)
-            .Subscribe(value =>
-            {
-                if (!_disposed)
-                {
-                    try
-                    {
-                        onNext(value);
-                    }
-                    catch (Exception ex)
-                    {
-                        HandleError($"Subscription error: {ex.Message}");
-                    }
-                }
-            });
-
-        _disposables.Add(subscription);
     }
 
     /// <summary>

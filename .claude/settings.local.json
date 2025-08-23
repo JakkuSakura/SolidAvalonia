@@ -5,7 +5,9 @@
       "Bash(dotnet sln:*)",
       "Bash(dotnet build SolidAvalonia.csproj)",
       "Bash(dotnet build examples/Counter/Counter.csproj)",
-      "Bash(dotnet run --project examples/Counter/Counter.csproj)"
+      "Bash(dotnet run --project examples/Counter/Counter.csproj)",
+      "Bash(dotnet add package Avalonia.Markup.Declarative)",
+      "Bash(dotnet build)"
     ],
     "deny": [],
     "ask": []

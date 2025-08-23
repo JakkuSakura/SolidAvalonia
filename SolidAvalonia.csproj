@@ -7,13 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.2"/>
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.2"/>
-    <PackageReference Include="ReactiveUI" Version="20.4.1"/>
+    <PackageReference Include="Avalonia" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Markup.Declarative" Version="11.1.3" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.2" />
+    <PackageReference Include="ReactiveUI" Version="20.4.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="src\"/>
+    <Folder Include="src\" />
   </ItemGroup>
 
   <ItemGroup>

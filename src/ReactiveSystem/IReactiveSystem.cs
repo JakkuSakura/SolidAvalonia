@@ -23,11 +23,6 @@ public interface IReactiveSystem : IDisposable
     void CreateEffect(Action effect);
     
     /// <summary>
-    /// Subscribe to an observable
-    /// </summary>
-    void Subscribe<T>(IObservable<T> observable, Action<T> onNext);
-    
-    /// <summary>
     /// Handler for errors that occur in the reactive system
     /// </summary>
     void HandleError(string errorMessage);

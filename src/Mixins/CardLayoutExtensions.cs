@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Markup.Declarative;
 
 namespace SolidAvalonia.Mixins;
 
@@ -13,7 +14,7 @@ public static class CardLayoutExtensions
     /// <summary>
     /// Creates a card-like container with border, background, and padding
     /// </summary>
-    public static Border Card(this SolidControl control, Control content, IBrush? background = null, double cornerRadius = 8, double padding = 15,
+    public static Border Card(this SolidControl _, Control content, IBrush? background = null, double cornerRadius = 8, double padding = 15,
         double margin = 5)
     {
         return new Border
@@ -31,7 +32,7 @@ public static class CardLayoutExtensions
     /// <summary>
     /// Creates a section with a header and content
     /// </summary>
-    public static Panel Section(this SolidControl control, string title, Control content, double fontSize = 16, double spacing = 10)
+    public static Panel Section(this SolidControl _, string title, Control content, double fontSize = 16, double spacing = 10)
     {
         var header = new TextBlock
         {
@@ -56,7 +57,7 @@ public static class CardLayoutExtensions
     /// <summary>
     /// Creates a separator line
     /// </summary>
-    public static Separator CreateSeparator(this SolidControl control, double margin = 10)
+    public static Separator CreateSeparator(this SolidControl _, double margin = 10)
     {
         return new Separator
         {

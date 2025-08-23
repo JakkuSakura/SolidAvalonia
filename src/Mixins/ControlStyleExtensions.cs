@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Markup.Declarative;
 
 namespace SolidAvalonia.Mixins;
 
@@ -14,7 +15,7 @@ public static class ControlStyleExtensions
     /// <summary>
     /// Creates a button with consistent styling
     /// </summary>
-    public static Button StyledButton(this SolidControl control, string content, Action? onClick = null, double width = double.NaN, double height = 35,
+    public static Button StyledButton(this SolidControl _, string content, Action? onClick = null, double width = double.NaN, double height = 35,
         IBrush? background = null, IBrush? foreground = null)
     {
         var button = new Button
@@ -44,7 +45,7 @@ public static class ControlStyleExtensions
     /// <summary>
     /// Creates a text input with consistent styling
     /// </summary>
-    public static TextBox StyledTextBox(this SolidControl control, string watermark = "", double width = 200, double height = 35)
+    public static TextBox StyledTextBox(this SolidControl _, string watermark = "", double width = 200, double height = 35)
     {
         return new TextBox
         {
@@ -61,7 +62,7 @@ public static class ControlStyleExtensions
     /// <summary>
     /// Creates a styled text block
     /// </summary>
-    public static TextBlock StyledText(this SolidControl control, string text = "", double fontSize = 14, FontWeight fontWeight = FontWeight.Normal,
+    public static TextBlock StyledText(this SolidControl _, string text = "", double fontSize = 14, FontWeight fontWeight = FontWeight.Normal,
         IBrush? foreground = null, HorizontalAlignment alignment = HorizontalAlignment.Left)
     {
         var textBlock = new TextBlock

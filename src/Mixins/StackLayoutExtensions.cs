@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Markup.Declarative;
 
 namespace SolidAvalonia.Mixins;
 
@@ -12,7 +13,7 @@ public static class StackLayoutExtensions
     /// <summary>
     /// Creates a vertical layout container with consistent spacing and padding
     /// </summary>
-    public static Panel VStack(this SolidControl control, double spacing = 10, double margin = 20, params Control[] children)
+    public static StackPanel VStack(this SolidControl _, double spacing = 10, double margin = 20, params Control[] children)
     {
         var panel = new StackPanel
         {
@@ -32,7 +33,7 @@ public static class StackLayoutExtensions
     /// <summary>
     /// Creates a horizontal layout container with consistent spacing and padding
     /// </summary>
-    public static Panel HStack(this SolidControl control, double spacing = 10, double margin = 0, params Control[] children)
+    public static StackPanel HStack(this SolidControl _, double spacing = 10, double margin = 0, params Control[] children)
     {
         var panel = new StackPanel
         {
@@ -52,7 +53,7 @@ public static class StackLayoutExtensions
     /// <summary>
     /// Creates a centered container
     /// </summary>
-    public static Panel Centered(this SolidControl control, Control content, double maxWidth = double.NaN)
+    public static Panel Centered(this SolidControl _, Control content, double maxWidth = double.NaN)
     {
         var container = new StackPanel
         {

@@ -2,6 +2,7 @@ using System;
 using System.Reactive.Disposables;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Declarative;
 using SolidAvalonia.ReactiveSystem;
 
 namespace SolidAvalonia;
@@ -38,26 +39,20 @@ public class SolidControl : UserControl, IDisposable
     /// <summary>
     /// Creates a reactive signal with getter and setter
     /// </summary>
-    protected (Func<T>, Action<T>) CreateSignal<T>(T initialValue) => 
+    public (Func<T>, Action<T>) CreateSignal<T>(T initialValue) => 
         _reactiveSystem.CreateSignal(initialValue);
 
     /// <summary>
     /// Creates a computed value that automatically updates when dependencies change
     /// </summary>
-    protected Func<T> CreateMemo<T>(Func<T> computation) => 
+    public Func<T> CreateMemo<T>(Func<T> computation) => 
         _reactiveSystem.CreateMemo(computation);
 
     /// <summary>
     /// Creates an effect that runs when dependencies change
     /// </summary>
-    protected void CreateEffect(Action effect) => 
+    public void CreateEffect(Action effect) => 
         _reactiveSystem.CreateEffect(effect);
-
-    /// <summary>
-    /// Subscribe to an observable
-    /// </summary>
-    protected void Subscribe<T>(IObservable<T> observable, Action<T> onNext) => 
-        _reactiveSystem.Subscribe(observable, onNext);
 
     #endregion
 
