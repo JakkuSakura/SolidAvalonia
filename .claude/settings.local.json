@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new sln -n SolidAvalonia)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet build SolidAvalonia.csproj)",
+      "Bash(dotnet build examples/Counter/Counter.csproj)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
