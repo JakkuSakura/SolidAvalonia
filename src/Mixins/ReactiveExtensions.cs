@@ -12,7 +12,7 @@ namespace SolidAvalonia.Mixins;
 /// </summary>
 public static class ReactiveExtensions
 {
-    public static T BindText<T>(this T control, IReactiveSystem system, Func<string> textGetter) 
+    public static T Text<T>(this T control, IReactiveSystem system, Func<string> textGetter) 
         where T : TextBlock
     {
         system.CreateEffect(() => control.Text = textGetter());
