@@ -7,7 +7,8 @@
       "Bash(dotnet build examples/Counter/Counter.csproj)",
       "Bash(dotnet run --project examples/Counter/Counter.csproj)",
       "Bash(dotnet add package Avalonia.Markup.Declarative)",
-      "Bash(dotnet build)"
+      "Bash(dotnet build)",
+      "Bash(dotnet build -v:minimal)"
     ],
     "deny": [],
     "ask": []

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using SolidAvalonia.Mixins;
+using SolidAvalonia;
 using Avalonia.Markup.Declarative;
 using SolidAvalonia.ReactiveSystem;
 
@@ -28,8 +29,8 @@ public class CounterView : SolidControl
         var isEven = rs.CreateMemo(() => count() % 2 == 0);
 
         // 3. Create reactive text blocks
-        var displayText = new TextBlock().BindText(rs, () => $"Count: {count()}, Double: {doubledCount()}");
-        var statusText = new TextBlock().BindText(rs, () =>
+        var displayText = new TextBlock().Text(rs, () => $"Count: {count()}, Double: {doubledCount()}");
+        var statusText = new TextBlock().Text(rs, () =>
         {
             var evenText = isEven() ? "Even" : "Odd";
             var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
