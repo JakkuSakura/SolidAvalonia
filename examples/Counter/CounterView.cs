@@ -4,11 +4,17 @@ using Avalonia.Media;
 using SolidAvalonia;
 using Avalonia.Markup.Declarative;
 using SolidAvalonia.Extensions;
+using ReactiveUI;
+using System;
+using System.Reactive.Concurrency;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 
 namespace Counter;
 
 /// <summary>
-/// Example counter view demonstrating the use of SolidControl with reactive signals, memos, and effects
+/// Example counter view demonstrating the use of SolidControl with reactive signals, memos, effects, and ReactiveUI throttling
 /// </summary>
 public class CounterView : SolidControl
 {
@@ -19,6 +25,8 @@ public class CounterView : SolidControl
         var (step, setStep) = rs.CreateSignal(1);
         var (doubledCount, setDoubledCount) = rs.CreateSignal(0);
 
+        // ReactiveCommand for increment/decrement operations
+
         // 2. Create derived signals and memos
         rs.CreateEffect(() => { setDoubledCount(count() * 2); });
 
@@ -27,6 +35,20 @@ public class CounterView : SolidControl
 
         rs.CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
 
+        // Track last click time for UI display
+        var (lastUpdateTime, setLastUpdateTime) = rs.CreateSignal(DateTime.Now.ToString("HH:mm:ss.fff"));
+        var incrementCommand = ReactiveCommand.Create<int>(increment =>
+        {
+            setCount(count() + increment);
+            setLastUpdateTime(DateTime.Now.ToString("HH:mm:ss.fff"));
+        });
+        // Create a subject for button clicks
+        var clickSubject = new Subject<int>();
+
+        // Throttle the clicks and execute command
+        clickSubject
+            .ThrottleSmart(TimeSpan.FromMilliseconds(500))
+            .SelectMany(v => incrementCommand.Execute(v)).Subscribe();
         // 3. Build UI
         return new Border()
             .CornerRadius(10)
@@ -38,7 +60,7 @@ public class CounterView : SolidControl
                     .Children(
                         // Header
                         new TextBlock()
-                            .Text("Solid-Style Counter")
+                            .Text("Solid-Style Counter with Throttling")
                             .FontSize(20)
                             .FontWeight(FontWeight.Bold)
                             .HorizontalAlignment(HorizontalAlignment.Center),
@@ -51,6 +73,13 @@ public class CounterView : SolidControl
                             .Foreground(() => isPositive() ? Brushes.Green :
                                 count() == 0 ? Brushes.Blue : Brushes.Red
                             )
+                        ),
+
+                        // Last click time display
+                        rs.Reactive(() => new TextBlock()
+                            .Text(() => $"Last Updated: {lastUpdateTime()}")
+                            .FontSize(14)
+                            .TextAlignment(TextAlignment.Center)
                         ),
 
                         // Step section
@@ -68,7 +97,7 @@ public class CounterView : SolidControl
                                     .Maximum(10)
                                     .CornerRadius(6)
                                     .Width(100)
-                                    .OnValueChanged(e => { setStep((int)e.NewValue.Value); })
+                                    .OnValueChanged(e => { setStep((int)e.NewValue!.Value); })
                             ),
 
                         // Button row
@@ -80,7 +109,7 @@ public class CounterView : SolidControl
                                 new Button()
                                     .Content("-")
                                     .MinWidth(80)
-                                    .OnClick(_ => setCount(count() - step())),
+                                    .OnClick(_ => { clickSubject.OnNext(-step()); }),
                                 new Button()
                                     .Content("Reset")
                                     .MinWidth(80)
@@ -88,7 +117,7 @@ public class CounterView : SolidControl
                                 new Button()
                                     .Content("+")
                                     .MinWidth(80)
-                                    .OnClick(_ => setCount(count() + step()))
+                                    .OnClick(_ => { clickSubject.OnNext(step()); })
                             ),
 
                         // Status indicator
@@ -98,7 +127,7 @@ public class CounterView : SolidControl
                                 {
                                     var evenText = isEven() ? "Even" : "Odd";
                                     var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
-                                    return $"{evenText} • {signText}";
+                                    return $"{evenText} • {signText} • Throttled to 2 clicks/sec";
                                 })
                                 .FontSize(14)
                                 .TextAlignment(TextAlignment.Center)
@@ -107,5 +136,39 @@ public class CounterView : SolidControl
                         )
                     )
             );
+    }
+}
+
+static class CounterViewExtensions
+{
+    public static IObservable<T> ThrottleSmart<T>(this IObservable<T> source, TimeSpan window,
+        IScheduler scheduler = null)
+    {
+        scheduler ??= Scheduler.Default;
+        return Observable.Create<T>(observer =>
+        {
+            var lastEmit = DateTimeOffset.MinValue;
+
+            var subscription = source.Subscribe(
+                x =>
+                {
+                    var now = scheduler.Now;
+                    var timeSinceLastEmit = now - lastEmit;
+                    var emitNow = timeSinceLastEmit >= window;
+
+                    if (!emitNow)
+                    {
+                        return;
+                    }
+
+                    observer.OnNext(x);
+                    lastEmit = now;
+                },
+                observer.OnError,
+                observer.OnCompleted
+            );
+
+            return subscription;
+        });
     }
 }

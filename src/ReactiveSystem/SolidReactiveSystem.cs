@@ -20,27 +20,11 @@ public class SolidReactiveSystem : IReactiveSystem
     private class ComputationContext : IDisposable
     {
         private readonly Stack<Computation> _computationStack = new();
-        private readonly int _threadId = Environment.CurrentManagedThreadId;
 
-
-        void ThrowIfWrongThread()
-        {
-            if (Environment.CurrentManagedThreadId != _threadId)
-                throw new InvalidOperationException("ComputationContext accessed from wrong thread.");
-        }
-
-        public Computation? Current
-        {
-            get
-            {
-                ThrowIfWrongThread();
-                return _computationStack.Count > 0 ? _computationStack.Peek() : null;
-            }
-        }
+        public Computation? Current => _computationStack.Count > 0 ? _computationStack.Peek() : null;
 
         public void Push(Computation computation)
         {
-            ThrowIfWrongThread();
             _computationStack.Push(computation);
         }
 
