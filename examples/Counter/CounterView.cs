@@ -1,11 +1,9 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using SolidAvalonia.Mixins;
 using SolidAvalonia;
 using Avalonia.Markup.Declarative;
-using SolidAvalonia.ReactiveSystem;
 
 namespace Counter;
 

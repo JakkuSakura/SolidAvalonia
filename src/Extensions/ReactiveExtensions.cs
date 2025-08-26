@@ -12,12 +12,13 @@ namespace SolidAvalonia.Mixins;
 /// </summary>
 public static class ReactiveExtensions
 {
-    public static T Text<T>(this T control, IReactiveSystem system, Func<string> textGetter) 
+    public static T Text<T>(this T control, IReactiveSystem system, Func<string> getter) 
         where T : TextBlock
     {
-        system.CreateEffect(() => control.Text = textGetter());
+        system.CreateEffect(() => control.Text = getter());
         return control;
     }
+
     /// <summary>
     /// Creates a control that is conditionally visible based on a condition
     /// </summary>
