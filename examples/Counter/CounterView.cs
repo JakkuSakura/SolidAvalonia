@@ -1,10 +1,10 @@
 using System;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using SolidAvalonia;
 using SolidAvalonia.Mixins;
+using Avalonia.Markup.Declarative;
+using SolidAvalonia.ReactiveSystem;
 
 namespace Counter;
 
@@ -13,116 +13,113 @@ namespace Counter;
 /// </summary>
 public class CounterView : SolidControl
 {
-    public CounterView() : base()
-    {
-        InitializeView();
-    }
-    
-    private void InitializeView()
+
+    protected override object Build()
     {
         // 1. Create signals
-        var (count, setCount) = CreateSignal(0);
-        var (step, setStep) = CreateSignal(1);
-        var (doubledCount, setDoubledCount) = CreateSignal(0);
+        var (count, setCount) = rs.CreateSignal(0);
+        var (step, setStep) = rs.CreateSignal(1);
+        var (doubledCount, setDoubledCount) = rs.CreateSignal(0);
 
         // 2. Create derived signals and memos
-        CreateEffect(() => {
-            // When count changes, set doubledCount to twice the value of count
-            setDoubledCount(count() * 2);
-        });
-        
-        var isPositive = CreateMemo(() => count() > 0);
-        var isEven = CreateMemo(() => count() % 2 == 0);
-        var displayText = CreateMemo(() => $"Count: {count()}, Double: {doubledCount()}");
+        rs.CreateEffect(() => { setDoubledCount(count() * 2); });
 
-        // 3. Build UI using layout helpers
-        var header = this.StyledText(
-            text: "Solid-Style Counter", 
-            fontSize: 20, 
-            fontWeight: FontWeight.Bold,
-            alignment: HorizontalAlignment.Center
-        );
+        var isPositive = rs.CreateMemo(() => count() > 0);
+        var isEven = rs.CreateMemo(() => count() % 2 == 0);
 
-        var display = this.ReactiveText(
-            () => displayText(),
-            fontSize: 16,
-            textAlignment: TextAlignment.Center
-        );
-
-        var stepInput = new NumericUpDown
+        // 3. Create reactive text blocks
+        var displayText = new TextBlock().BindText(rs, () => $"Count: {count()}, Double: {doubledCount()}");
+        var statusText = new TextBlock().BindText(rs, () =>
         {
-            Value = 1,
-            Minimum = 1,
-            Maximum = 10,
-            CornerRadius = new CornerRadius(6)
-        };
+            var evenText = isEven() ? "Even" : "Odd";
+            var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
+            return $"{evenText} • {signText}";
+        });
 
-        var decrementButton = this.StyledButton("-", () => setCount(count() - step()));
-        var resetButton = this.ReactiveButton(
-            () => "Reset",
-            () => setCount(0)
-        );
-        var incrementButton = this.StyledButton("+", () => setCount(count() + step()));
-
-        var statusIndicator = this.ReactiveText(
-            () => {
-                var evenText = isEven() ? "Even" : "Odd";
-                var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
-                return $"{evenText} • {signText}";
-            },
-            fontSize: 14,
-            textAlignment: TextAlignment.Center
-        );
-
-        // // Create layout using helpers
-        var stepSection = this.Section("Step Size:", stepInput, spacing: 5);
-        var buttonRow = this.HStack(spacing: 10, margin: 0, decrementButton, resetButton, incrementButton);
-        
-        var counterCard = this.Card(
-            this.VStack(spacing: 15, margin: 20,
-                header,
-                display,
-                stepSection,
-                buttonRow,
-                statusIndicator
-            ),
-            padding: 25
-        );
-
-        Content = this.Centered(counterCard, maxWidth: 400);
-
-        // 4. Set up reactive effects
-        CreateEffect(() => {
-            display.Foreground = isPositive() ? Brushes.Green :
+        // 4. Set up reactive effects for colors
+        rs.CreateEffect(() =>
+        {
+            displayText.Foreground = isPositive() ? Brushes.Green :
                 count() == 0 ? Brushes.Blue : Brushes.Red;
         });
 
-        CreateEffect(() => {
-            statusIndicator.Foreground = isPositive() ? Brushes.DarkGreen :
+        rs.CreateEffect(() =>
+        {
+            statusText.Foreground = isPositive() ? Brushes.DarkGreen :
                 count() == 0 ? Brushes.DarkBlue : Brushes.DarkRed;
         });
 
-        // Event handler for step input
-        stepInput.ValueChanged += (_, e) => {
-            if (e.NewValue.HasValue)
-            {
-                setStep((int)e.NewValue.Value);
-            }
-        };
-        
-        // Log state changes
-        CreateEffect(() => {
-            Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}");
-        });
-    }
-}
+        // 5. Log state changes
+        rs.CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
 
-// Helper extension method
-public static class ControlExtensions
-{
-    public static T Apply<T>(this T control, Action<T> action) where T : Control
-    {
-        action(control);
-        return control;
+        // 6. Build UI
+        return new Border()
+            .CornerRadius(10)
+            .Padding(25)
+            .MaxWidth(400)
+            .Child(
+                new StackPanel()
+                    .Spacing(15)
+                    .Children(
+                        // Header
+                        new TextBlock()
+                            .Text("Solid-Style Counter")
+                            .FontSize(20)
+                            .FontWeight(FontWeight.Bold)
+                            .HorizontalAlignment(HorizontalAlignment.Center),
+
+                        // Display
+                        displayText
+                            .FontSize(16)
+                            .TextAlignment(TextAlignment.Center),
+
+                        // Step section
+                        new StackPanel()
+                            .Orientation(Orientation.Horizontal)
+                            .Spacing(5)
+                            .HorizontalAlignment(HorizontalAlignment.Center)
+                            .Children(
+                                new TextBlock()
+                                    .Text("Step Size:")
+                                    .VerticalAlignment(VerticalAlignment.Center),
+                                new NumericUpDown()
+                                    .Value(step())
+                                    .Minimum(1)
+                                    .Maximum(10)
+                                    .CornerRadius(6)
+                                    .Width(100)
+                                    .OnValueChanged(e =>
+                                    {
+                                        if (e.NewValue.HasValue)
+                                            setStep((int)e.NewValue.Value);
+                                    })
+                            ),
+
+                        // Button row
+                        new StackPanel()
+                            .Orientation(Orientation.Horizontal)
+                            .Spacing(10)
+                            .HorizontalAlignment(HorizontalAlignment.Center)
+                            .Children(
+                                new Button()
+                                    .Content("-")
+                                    .MinWidth(80)
+                                    .OnClick(_ => setCount(count() - step())),
+                                new Button()
+                                    .Content("Reset")
+                                    .MinWidth(80)
+                                    .OnClick(_ => setCount(0)),
+                                new Button()
+                                    .Content("+")
+                                    .MinWidth(80)
+                                    .OnClick(_ => setCount(count() + step()))
+                            ),
+
+                        // Status indicator
+                        statusText
+                            .FontSize(14)
+                            .TextAlignment(TextAlignment.Center)
+                    )
+            );
     }
 }
