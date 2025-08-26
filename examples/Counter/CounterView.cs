@@ -20,12 +20,12 @@ public class CounterView : SolidControl
         var (doubledCount, setDoubledCount) = rs.CreateSignal(0);
 
         // 2. Create derived signals and memos
-        // rs.CreateEffect(() => { setDoubledCount(count() * 2); });
+        rs.CreateEffect(() => { setDoubledCount(count() * 2); });
 
         var isPositive = rs.CreateMemo(() => count() > 0);
         var isEven = rs.CreateMemo(() => count() % 2 == 0);
 
-        // rs.CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
+        rs.CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
 
         // 3. Build UI
         return new Border()
@@ -44,17 +44,13 @@ public class CounterView : SolidControl
                             .HorizontalAlignment(HorizontalAlignment.Center),
 
                         // Display
-                        rs.Reactive(() =>
-                            {
-                                var text = $"Count: {count()}, Double: {doubledCount()}";
-                                return new TextBlock()
-                                    .Text(() => text)
-                                    .FontSize(16)
-                                    .TextAlignment(TextAlignment.Center)
-                                    .Foreground(() => isPositive() ? Brushes.Green :
-                                        count() == 0 ? Brushes.Blue : Brushes.Red
-                                    );
-                            }
+                        rs.Reactive(() => new TextBlock()
+                            .Text(() => $"Count: {count()}, Double: {doubledCount()}")
+                            .FontSize(16)
+                            .TextAlignment(TextAlignment.Center)
+                            .Foreground(() => isPositive() ? Brushes.Green :
+                                count() == 0 ? Brushes.Blue : Brushes.Red
+                            )
                         ),
 
                         // Step section
@@ -72,11 +68,7 @@ public class CounterView : SolidControl
                                     .Maximum(10)
                                     .CornerRadius(6)
                                     .Width(100)
-                                    .OnValueChanged(e =>
-                                    {
-                                        if (e.NewValue.HasValue)
-                                            setStep((int)e.NewValue.Value);
-                                    })
+                                    .OnValueChanged(e => { setStep((int)e.NewValue.Value); })
                             ),
 
                         // Button row

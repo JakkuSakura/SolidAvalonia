@@ -10,7 +10,6 @@ public class SolidReactiveSystem : IReactiveSystem
     private readonly ComputationContext _context = new();
     private readonly Scheduler _scheduler = new();
     private readonly List<IDisposable> _disposables = new();
-    private readonly object _lock = new();
     private bool _disposed;
 
     #region Core Types
@@ -21,61 +20,41 @@ public class SolidReactiveSystem : IReactiveSystem
     private class ComputationContext : IDisposable
     {
         private readonly Stack<Computation> _computationStack = new();
-        private readonly object _lock = new();
-        private bool _isBatching;
+        private readonly int _threadId = Environment.CurrentManagedThreadId;
+
+
+        void ThrowIfWrongThread()
+        {
+            if (Environment.CurrentManagedThreadId != _threadId)
+                throw new InvalidOperationException("ComputationContext accessed from wrong thread.");
+        }
 
         public Computation? Current
         {
             get
             {
-                lock (_lock)
-                {
-                    return _computationStack.Count > 0 ? _computationStack.Peek() : null;
-                }
-            }
-        }
-
-        public bool IsBatching
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    return _isBatching;
-                }
-            }
-            set
-            {
-                lock (_lock)
-                {
-                    _isBatching = value;
-                }
+                ThrowIfWrongThread();
+                return _computationStack.Count > 0 ? _computationStack.Peek() : null;
             }
         }
 
         public void Push(Computation computation)
         {
-            lock (_lock)
-            {
-                _computationStack.Push(computation);
-            }
+            ThrowIfWrongThread();
+            _computationStack.Push(computation);
         }
+
+        public bool IsBatching;
 
         public void Pop()
         {
-            lock (_lock)
-            {
-                if (_computationStack.Count > 0)
-                    _computationStack.Pop();
-            }
+            if (_computationStack.Count > 0)
+                _computationStack.Pop();
         }
 
         public void Clear()
         {
-            lock (_lock)
-            {
-                _computationStack.Clear();
-            }
+            _computationStack.Clear();
         }
 
         public void Dispose()
@@ -566,10 +545,7 @@ public class SolidReactiveSystem : IReactiveSystem
 
         var signal = new Signal<T>(initialValue, _context, _scheduler);
 
-        lock (_lock)
-        {
-            _disposables.Add(signal);
-        }
+        _disposables.Add(signal);
 
         return (signal.Get, signal.Set);
     }
@@ -585,11 +561,8 @@ public class SolidReactiveSystem : IReactiveSystem
             throw new ArgumentNullException(nameof(computation));
 
         var memo = new Memo<T>(computation, _context, _scheduler);
+        _disposables.Add(memo);
 
-        lock (_lock)
-        {
-            _disposables.Add(memo);
-        }
 
         return memo.Get;
     }
@@ -606,10 +579,7 @@ public class SolidReactiveSystem : IReactiveSystem
 
         var effectNode = new Effect(effect, _context, _scheduler);
 
-        lock (_lock)
-        {
-            _disposables.Add(effectNode);
-        }
+        _disposables.Add(effectNode);
 
         // Schedule initial execution (not immediate!)
         _scheduler.EnqueueComputation(effectNode);
@@ -645,19 +615,17 @@ public class SolidReactiveSystem : IReactiveSystem
     {
         if (_disposed) return;
 
-        lock (_lock)
+        if (_disposed) return;
+        _disposed = true;
+
+        // Dispose all reactive nodes
+        foreach (var disposable in _disposables)
         {
-            if (_disposed) return;
-            _disposed = true;
-
-            // Dispose all reactive nodes
-            foreach (var disposable in _disposables)
-            {
-                disposable.Dispose();
-            }
-
-            _disposables.Clear();
+            disposable.Dispose();
         }
+
+        _disposables.Clear();
+
 
         _scheduler.Clear();
         _context.Dispose();
