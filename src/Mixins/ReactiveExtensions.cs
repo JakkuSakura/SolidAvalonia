@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using SolidAvalonia.ReactiveSystem;
 
 namespace SolidAvalonia.Mixins;
 
@@ -14,7 +15,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a text block that automatically updates when its text source changes
     /// </summary>
-    public static TextBlock ReactiveText(this SolidControl control, Func<string> textFactory, double fontSize = 14, 
+    public static TextBlock ReactiveText(this IReactiveSystem reactive, Func<string> textFactory, double fontSize = 14, 
         FontWeight fontWeight = FontWeight.Normal, IBrush? foreground = null, 
         TextAlignment textAlignment = TextAlignment.Left)
     {
@@ -28,7 +29,7 @@ public static class ReactiveExtensions
         if (foreground != null)
             textBlock.Foreground = foreground;
 
-        control.CreateEffect(() => textBlock.Text = textFactory());
+        reactive.CreateEffect(() => textBlock.Text = textFactory());
         
         return textBlock;
     }
@@ -36,7 +37,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a button with a reactive content that updates automatically
     /// </summary>
-    public static Button ReactiveButton(this SolidControl control, Func<string> contentFactory, 
+    public static Button ReactiveButton(this IReactiveSystem reactive, Func<string> contentFactory, 
         Action? onClick = null, double width = double.NaN, double height = 35,
         IBrush? background = null, IBrush? foreground = null)
     {
@@ -59,7 +60,7 @@ public static class ReactiveExtensions
         if (onClick != null)
             button.Click += (_, _) => onClick();
 
-        control.CreateEffect(() => button.Content = contentFactory());
+        reactive.CreateEffect(() => button.Content = contentFactory());
         
         return button;
     }
@@ -67,7 +68,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a text box with reactive binding to a signal
     /// </summary>
-    public static TextBox ReactiveTextBox(this SolidControl control, Func<string> getValue, Action<string> setValue,
+    public static TextBox ReactiveTextBox(this IReactiveSystem reactive, Func<string> getValue, Action<string> setValue,
         string watermark = "", double width = 200, double height = 35)
     {
         var textBox = new TextBox
@@ -85,7 +86,7 @@ public static class ReactiveExtensions
         textBox.Text = getValue();
 
         // When signal changes, update TextBox
-        control.CreateEffect(() => textBox.Text = getValue());
+        reactive.CreateEffect(() => textBox.Text = getValue());
 
         // When TextBox changes, update signal
         textBox.TextChanged += (_, _) => setValue(textBox.Text ?? string.Empty);
@@ -96,7 +97,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a checkbox with reactive binding to a signal
     /// </summary>
-    public static CheckBox ReactiveCheckBox(this SolidControl control, Func<bool> getValue, Action<bool> setValue,
+    public static CheckBox ReactiveCheckBox(this IReactiveSystem reactive, Func<bool> getValue, Action<bool> setValue,
         string content = "", double width = double.NaN, double height = double.NaN)
     {
         var checkBox = new CheckBox
@@ -114,7 +115,7 @@ public static class ReactiveExtensions
         checkBox.IsChecked = getValue();
 
         // When signal changes, update CheckBox
-        control.CreateEffect(() => checkBox.IsChecked = getValue());
+        reactive.CreateEffect(() => checkBox.IsChecked = getValue());
 
         // When CheckBox changes, update signal
         checkBox.IsCheckedChanged += (_, _) => setValue(checkBox.IsChecked ?? false);
@@ -125,7 +126,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a reactive toggle button
     /// </summary>
-    public static ToggleButton ReactiveToggle(this SolidControl control, Func<bool> getValue, Action<bool> setValue,
+    public static ToggleButton ReactiveToggle(this IReactiveSystem reactive, Func<bool> getValue, Action<bool> setValue,
         string content = "", double width = double.NaN, double height = double.NaN)
     {
         var toggleButton = new ToggleButton
@@ -143,7 +144,7 @@ public static class ReactiveExtensions
         toggleButton.IsChecked = getValue();
 
         // When signal changes, update ToggleButton
-        control.CreateEffect(() => toggleButton.IsChecked = getValue());
+        reactive.CreateEffect(() => toggleButton.IsChecked = getValue());
 
         // When ToggleButton changes, update signal
         toggleButton.IsCheckedChanged += (_, _) => setValue(toggleButton.IsChecked ?? false);
@@ -154,7 +155,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a reactive slider
     /// </summary>
-    public static Slider ReactiveSlider(this SolidControl control, Func<double> getValue, Action<double> setValue,
+    public static Slider ReactiveSlider(this IReactiveSystem reactive, Func<double> getValue, Action<double> setValue,
         double minimum = 0, double maximum = 100, double width = double.NaN, double height = double.NaN)
     {
         var slider = new Slider
@@ -173,7 +174,7 @@ public static class ReactiveExtensions
         slider.Value = getValue();
 
         // When signal changes, update Slider
-        control.CreateEffect(() => slider.Value = getValue());
+        reactive.CreateEffect(() => slider.Value = getValue());
 
         // When Slider changes, update signal
         slider.ValueChanged += (_, e) => setValue(e.NewValue);
@@ -184,7 +185,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a reactive combo box
     /// </summary>
-    public static ComboBox ReactiveComboBox<T>(this SolidControl control, Func<T> getValue, Action<T> setValue,
+    public static ComboBox ReactiveComboBox<T>(this IReactiveSystem reactive, Func<T> getValue, Action<T> setValue,
         T[] items, double width = double.NaN, double height = double.NaN)
     {
         var comboBox = new ComboBox
@@ -203,7 +204,7 @@ public static class ReactiveExtensions
         comboBox.SelectedItem = getValue();
 
         // When signal changes, update ComboBox
-        control.CreateEffect(() => comboBox.SelectedItem = getValue());
+        reactive.CreateEffect(() => comboBox.SelectedItem = getValue());
 
         // When ComboBox changes, update signal
         comboBox.SelectionChanged += (_, _) => 
@@ -220,7 +221,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a reactive progress bar
     /// </summary>
-    public static ProgressBar ReactiveProgressBar(this SolidControl control, Func<double> getValue,
+    public static ProgressBar ReactiveProgressBar(this IReactiveSystem reactive, Func<double> getValue,
         double minimum = 0, double maximum = 100, double width = double.NaN, double height = double.NaN)
     {
         var progressBar = new ProgressBar
@@ -236,7 +237,7 @@ public static class ReactiveExtensions
             progressBar.Height = height;
 
         // Set up the reactive binding
-        control.CreateEffect(() => progressBar.Value = getValue());
+        reactive.CreateEffect(() => progressBar.Value = getValue());
         
         return progressBar;
     }
@@ -244,7 +245,7 @@ public static class ReactiveExtensions
     /// <summary>
     /// Creates a control that is conditionally visible based on a condition
     /// </summary>
-    public static T ShowWhen<T>(this T control, SolidControl parent, Func<bool> condition) where T : Control
+    public static T ShowWhen<T>(this T control, IReactiveSystem parent, Func<bool> condition) where T : Control
     {
         parent.CreateEffect(() => control.IsVisible = condition());
         return control;
