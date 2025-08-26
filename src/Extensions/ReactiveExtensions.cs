@@ -1,30 +1,35 @@
-using System;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Layout;
-using Avalonia.Media;
+using Avalonia.Controls.Templates;
 using SolidAvalonia.ReactiveSystem;
 
-namespace SolidAvalonia.Mixins;
+namespace SolidAvalonia.Extensions;
 
 /// <summary>
 /// Extension methods for reactive controls
 /// </summary>
 public static class ReactiveExtensions
 {
-    public static T Text<T>(this T control, IReactiveSystem system, Func<string> getter) 
+    public static ReactiveControl<T> Reactive<T>(this IReactiveSystem rs, Func<T> getter)
+        where T : Control
+    {
+        var rc = new ReactiveControl<T>(getter);
+        rc.Register(rs);
+        return rc;
+    }
+
+    public static T Text<T>(this T control, IReactiveSystem rs, Func<string> getter)
         where T : TextBlock
     {
-        system.CreateEffect(() => control.Text = getter());
+        rs.CreateEffect(() => control.Text = getter());
         return control;
     }
 
     /// <summary>
     /// Creates a control that is conditionally visible based on a condition
     /// </summary>
-    public static T ShowWhen<T>(this T control, IReactiveSystem system, Func<bool> condition) where T : Control
+    public static T ShowWhen<T>(this T control, IReactiveSystem rs, Func<bool> condition) where T : Control
     {
-        system.CreateEffect(() => control.IsVisible = condition());
+        rs.CreateEffect(() => control.IsVisible = condition());
         return control;
     }
 }

@@ -1,238 +1,559 @@
-using System;
-using System.Collections.Generic;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using Avalonia.ReactiveUI;
 using Avalonia.Threading;
 
 namespace SolidAvalonia.ReactiveSystem;
 
 /// <summary>
-/// Implementation of the reactive system providing signal, memo, and effect functionality
+/// High-performance reactive system implementation with explicit dependency tracking
 /// </summary>
 public class SolidReactiveSystem : IReactiveSystem
 {
-    private readonly CompositeDisposable _disposables = new();
-    private readonly DependencyTracker _dependencyTracker = new();
+    private readonly ComputationContext _context = new();
+    private readonly Scheduler _scheduler = new();
+    private readonly List<IDisposable> _disposables = new();
+    private readonly object _lock = new();
     private bool _disposed;
-    
+
+    #region Core Types
+
     /// <summary>
-    /// Tracks dependencies for reactive computations
+    /// Tracks the currently executing computation for dependency registration
     /// </summary>
-    private class DependencyTracker
+    private class ComputationContext : IDisposable
     {
-        private readonly Stack<HashSet<IReactiveNode>> _trackingStack = new();
+        private readonly Stack<Computation> _computationStack = new();
+        private readonly object _lock = new();
+        private bool _isBatching;
 
-        public void StartTracking(HashSet<IReactiveNode> dependencies)
+        public Computation? Current
         {
-            _trackingStack.Push(dependencies);
-        }
-
-        public void StopTracking()
-        {
-            if (_trackingStack.Count > 0)
-                _trackingStack.Pop();
-        }
-
-        public void RegisterDependency(IReactiveNode node)
-        {
-            if (_trackingStack.Count > 0)
+            get
             {
-                _trackingStack.Peek().Add(node);
+                lock (_lock)
+                {
+                    return _computationStack.Count > 0 ? _computationStack.Peek() : null;
+                }
             }
         }
 
-        public bool IsTracking => _trackingStack.Count > 0;
-    }
-
-    /// <summary>
-    /// Base interface for reactive nodes
-    /// </summary>
-    private interface IReactiveNode : IDisposable
-    {
-        IObservable<object?> Changed { get; }
-    }
-
-    /// <summary>
-    /// Signal implementation with dependency tracking
-    /// </summary>
-    private class Signal<T> : IReactiveNode
-    {
-        private readonly BehaviorSubject<T> _subject;
-        private readonly DependencyTracker _tracker;
-        private readonly Subject<object?> _changed = new();
-
-        public Signal(T initialValue, DependencyTracker tracker)
+        public bool IsBatching
         {
-            _subject = new BehaviorSubject<T>(initialValue);
-            _tracker = tracker;
+            get
+            {
+                lock (_lock)
+                {
+                    return _isBatching;
+                }
+            }
+            set
+            {
+                lock (_lock)
+                {
+                    _isBatching = value;
+                }
+            }
+        }
 
-            _subject.Skip(1).Subscribe(_ => _changed.OnNext(null));
+        public void Push(Computation computation)
+        {
+            lock (_lock)
+            {
+                _computationStack.Push(computation);
+            }
+        }
+
+        public void Pop()
+        {
+            lock (_lock)
+            {
+                if (_computationStack.Count > 0)
+                    _computationStack.Pop();
+            }
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _computationStack.Clear();
+            }
+        }
+
+        public void Dispose()
+        {
+            Clear();
+        }
+    }
+
+    /// <summary>
+    /// Base class for all reactive nodes in the dependency graph
+    /// </summary>
+    private abstract class ReactiveNode : IDisposable
+    {
+        protected readonly object SyncRoot = new();
+        public bool Disposed;
+
+        public long Version { get; protected set; }
+        public abstract void Dispose();
+    }
+
+    /// <summary>
+    /// Represents a reactive signal that can be read and written
+    /// </summary>
+    private class Signal<T> : ReactiveNode
+    {
+        private T _value;
+        private readonly HashSet<Computation> _observers = new();
+        private readonly ComputationContext _context;
+        private readonly Scheduler _scheduler;
+
+        public Signal(T initialValue, ComputationContext context, Scheduler scheduler)
+        {
+            _value = initialValue;
+            _context = context;
+            _scheduler = scheduler;
+            Version = 0;
         }
 
         public T Get()
         {
-            _tracker.RegisterDependency(this);
-            return _subject.Value;
+            lock (SyncRoot)
+            {
+                // Register dependency if we're inside a computation
+                var current = _context.Current;
+                if (current != null && !current.Disposed)
+                {
+                    _observers.Add(current);
+                    current.AddDependency(this, Version);
+                }
+
+                return _value;
+            }
         }
 
         public void Set(T value)
         {
-            if (!EqualityComparer<T>.Default.Equals(_subject.Value, value))
+            HashSet<Computation>? observersToNotify = null;
+
+            lock (SyncRoot)
             {
-                _subject.OnNext(value);
+                if (EqualityComparer<T>.Default.Equals(_value, value))
+                    return;
+
+                _value = value;
+                Version++;
+
+                if (_observers.Count > 0)
+                {
+                    observersToNotify = new HashSet<Computation>(_observers);
+                }
+            }
+
+            // Notify observers outside the lock to prevent deadlocks
+            if (observersToNotify != null)
+            {
+                foreach (var observer in observersToNotify)
+                {
+                    observer.Invalidate();
+                }
+
+                // Only schedule flush if not in a batch
+                if (!_context.IsBatching)
+                {
+                    _scheduler.ScheduleFlush();
+                }
             }
         }
 
-        public IObservable<object?> Changed => _changed;
-
-        public void Dispose()
+        public void RemoveObserver(Computation computation)
         {
-            _subject?.Dispose();
-            _changed?.Dispose();
+            lock (SyncRoot)
+            {
+                _observers.Remove(computation);
+            }
+        }
+
+        public override void Dispose()
+        {
+            lock (SyncRoot)
+            {
+                if (Disposed) return;
+                Disposed = true;
+                _observers.Clear();
+            }
         }
     }
 
     /// <summary>
-    /// Memo implementation with automatic dependency tracking
+    /// Base class for computations (memos and effects)
     /// </summary>
-    private class Memo<T> : IReactiveNode
+    private abstract class Computation : ReactiveNode
+    {
+        protected readonly ComputationContext Context;
+        protected readonly Scheduler Scheduler;
+        protected readonly Dictionary<ReactiveNode, long> Dependencies = new();
+        protected bool IsDirty = true;
+        protected bool IsRunning;
+        protected bool HasRun;
+
+        protected Computation(ComputationContext context, Scheduler scheduler)
+        {
+            Context = context;
+            Scheduler = scheduler;
+        }
+
+        public void AddDependency(ReactiveNode node, long version)
+        {
+            lock (SyncRoot)
+            {
+                Dependencies[node] = version;
+            }
+        }
+
+        public virtual void Invalidate()
+        {
+            lock (SyncRoot)
+            {
+                if (Disposed || IsDirty) return;
+                IsDirty = true;
+            }
+
+            OnInvalidated();
+        }
+
+        protected virtual void OnInvalidated()
+        {
+            Scheduler.EnqueueComputation(this);
+        }
+
+        protected void ClearDependencies()
+        {
+            lock (SyncRoot)
+            {
+                foreach (var dep in Dependencies.Keys)
+                {
+                    if (dep is Signal<object> signal)
+                    {
+                        signal.RemoveObserver(this);
+                    }
+                }
+
+                Dependencies.Clear();
+            }
+        }
+
+        public abstract void Execute();
+
+        public override void Dispose()
+        {
+            lock (SyncRoot)
+            {
+                if (Disposed) return;
+                Disposed = true;
+                ClearDependencies();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Memo computation that caches its result
+    /// </summary>
+    private class Memo<T> : Computation
     {
         private readonly Func<T> _computation;
-        private readonly DependencyTracker _tracker;
-        private readonly BehaviorSubject<T> _value;
-        private readonly Subject<object?> _changed = new();
-        private readonly CompositeDisposable _subscriptions = new();
-        private HashSet<IReactiveNode> _dependencies = new();
+        private T _value;
+        private bool _hasValue;
+        private readonly HashSet<Computation> _observers = new();
 
-        public Memo(Func<T> computation, DependencyTracker tracker)
+        public Memo(Func<T> computation, ComputationContext context, Scheduler scheduler)
+            : base(context, scheduler)
         {
             _computation = computation;
-            _tracker = tracker;
-
-            // Initial computation
-            var initialValue = ComputeWithTracking();
-            _value = new BehaviorSubject<T>(initialValue);
-
-            _value.Skip(1).Subscribe(_ => _changed.OnNext(null));
-        }
-
-        private T ComputeWithTracking()
-        {
-            // Clear old subscriptions
-            _subscriptions.Clear();
-
-            // Track dependencies
-            var newDependencies = new HashSet<IReactiveNode>();
-            _tracker.StartTracking(newDependencies);
-
-            T result;
-            try
-            {
-                result = _computation();
-            }
-            finally
-            {
-                _tracker.StopTracking();
-            }
-
-            // Subscribe to new dependencies
-            foreach (var dep in newDependencies)
-            {
-                var subscription = dep.Changed.Subscribe(_ => Recompute());
-                _subscriptions.Add(subscription);
-            }
-
-            _dependencies = newDependencies;
-            return result;
-        }
-
-        private void Recompute()
-        {
-            var newValue = ComputeWithTracking();
-            if (!EqualityComparer<T>.Default.Equals(_value.Value, newValue))
-            {
-                _value.OnNext(newValue);
-            }
+            _value = default!;
         }
 
         public T Get()
         {
-            _tracker.RegisterDependency(this);
-            return _value.Value;
+            lock (SyncRoot)
+            {
+                // Register as dependency if we're in a computation
+                var current = Context.Current;
+                if (current != null && !current.Disposed)
+                {
+                    _observers.Add(current);
+                    current.AddDependency(this, Version);
+                }
+
+                // Compute if dirty or first run
+                if (IsDirty || !_hasValue)
+                {
+                    Execute();
+                }
+
+                return _value;
+            }
         }
 
-        public IObservable<object?> Changed => _changed;
-
-        public void Dispose()
+        public override void Execute()
         {
-            _subscriptions?.Dispose();
-            _value?.Dispose();
-            _changed?.Dispose();
-        }
-    }
+            if (IsRunning) return; // Prevent circular dependencies
 
-    /// <summary>
-    /// Effect implementation with automatic dependency tracking
-    /// </summary>
-    private class Effect : IDisposable
-    {
-        private readonly Action _effect;
-        private readonly DependencyTracker _tracker;
-        private readonly CompositeDisposable _subscriptions = new();
-        private HashSet<IReactiveNode> _dependencies = new();
-
-        public Effect(Action effect, DependencyTracker tracker)
-        {
-            _effect = effect;
-            _tracker = tracker;
-        }
-
-        public void Run()
-        {
-            // Clear old subscriptions
-            _subscriptions.Clear();
-
-            // Track dependencies
-            var newDependencies = new HashSet<IReactiveNode>();
-            _tracker.StartTracking(newDependencies);
+            lock (SyncRoot)
+            {
+                if (!IsDirty && _hasValue) return;
+                IsRunning = true;
+            }
 
             try
             {
-                // Run on UI thread if needed
-                if (Dispatcher.UIThread.CheckAccess())
+                // Clear old dependencies
+                ClearDependencies();
+
+                // Track this computation
+                Context.Push(this);
+
+                T newValue;
+                try
                 {
-                    _effect();
+                    newValue = _computation();
                 }
-                else
+                finally
                 {
-                    Dispatcher.UIThread.InvokeAsync(_effect).Wait();
+                    Context.Pop();
+                }
+
+                lock (SyncRoot)
+                {
+                    var changed = !_hasValue || !EqualityComparer<T>.Default.Equals(_value, newValue);
+                    _value = newValue;
+                    _hasValue = true;
+                    IsDirty = false;
+                    HasRun = true;
+
+                    if (changed)
+                    {
+                        Version++;
+
+                        // Notify dependent computations
+                        foreach (var observer in _observers.ToList())
+                        {
+                            observer.Invalidate();
+                        }
+                    }
                 }
             }
             finally
             {
-                _tracker.StopTracking();
+                lock (SyncRoot)
+                {
+                    IsRunning = false;
+                }
             }
-
-            // Subscribe to new dependencies
-            foreach (var dep in newDependencies)
-            {
-                var subscription = dep.Changed
-                    .Throttle(TimeSpan.FromMilliseconds(16)) // 60 FPS max
-                    .ObserveOn(AvaloniaScheduler.Instance)
-                    .Subscribe(_ => Run());
-                _subscriptions.Add(subscription);
-            }
-
-            _dependencies = newDependencies;
         }
 
-        public void Dispose()
+        protected override void OnInvalidated()
         {
-            _subscriptions.Dispose();
+            // Memos are lazy - don't schedule execution until read
+            lock (SyncRoot)
+            {
+                // Propagate invalidation to observers
+                foreach (var observer in _observers.ToList())
+                {
+                    observer.Invalidate();
+                }
+            }
+        }
+
+        public override void Dispose()
+        {
+            lock (SyncRoot)
+            {
+                _observers.Clear();
+            }
+
+            base.Dispose();
         }
     }
+
+    /// <summary>
+    /// Effect computation that runs side effects
+    /// </summary>
+    private class Effect : Computation
+    {
+        private readonly Action _effect;
+
+        public Effect(Action effect, ComputationContext context, Scheduler scheduler)
+            : base(context, scheduler)
+        {
+            _effect = effect;
+            // Effects start dirty and need to be scheduled
+            IsDirty = true;
+        }
+
+        public override void Execute()
+        {
+            if (IsRunning) return;
+
+            lock (SyncRoot)
+            {
+                if (Disposed) return;
+                IsRunning = true;
+            }
+
+            try
+            {
+                // Clear old dependencies
+                ClearDependencies();
+
+                // Track this computation
+                Context.Push(this);
+
+                try
+                {
+                    // Run on UI thread if available
+                    if (Dispatcher.UIThread?.CheckAccess() == false)
+                    {
+                        Dispatcher.UIThread.Invoke(() => _effect());
+                    }
+                    else
+                    {
+                        _effect();
+                    }
+                }
+                finally
+                {
+                    Context.Pop();
+                }
+
+                lock (SyncRoot)
+                {
+                    IsDirty = false;
+                    HasRun = true;
+                    Version++;
+                }
+            }
+            finally
+            {
+                lock (SyncRoot)
+                {
+                    IsRunning = false;
+                }
+            }
+        }
+
+        protected override void OnInvalidated()
+        {
+            // Effects are eager - schedule execution immediately
+            base.OnInvalidated();
+
+            if (!Context.IsBatching)
+            {
+                Scheduler.ScheduleFlush();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Schedules and batches computation updates
+    /// </summary>
+    private class Scheduler
+    {
+        private readonly Queue<Computation> _pendingComputations = new();
+        private readonly HashSet<Computation> _enqueuedComputations = new();
+        private readonly object _lock = new();
+        private bool _isFlushScheduled;
+        private bool _isFlushing;
+
+        public void EnqueueComputation(Computation computation)
+        {
+            lock (_lock)
+            {
+                if (_enqueuedComputations.Contains(computation))
+                    return;
+
+                _pendingComputations.Enqueue(computation);
+                _enqueuedComputations.Add(computation);
+            }
+        }
+
+        public void ScheduleFlush()
+        {
+            lock (_lock)
+            {
+                if (_isFlushScheduled || _isFlushing)
+                    return;
+
+                _isFlushScheduled = true;
+            }
+
+            // Schedule on next frame/tick
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (Dispatcher.UIThread != null)
+            {
+                Dispatcher.UIThread.Post(Flush, DispatcherPriority.Normal);
+            }
+            else
+            {
+                // Fallback to thread pool if no UI thread
+                ThreadPool.QueueUserWorkItem(_ => Flush());
+            }
+        }
+
+        public void Flush()
+        {
+            lock (_lock)
+            {
+                if (_isFlushing) return;
+                _isFlushing = true;
+                _isFlushScheduled = false;
+            }
+
+            try
+            {
+                while (true)
+                {
+                    Computation? computation;
+
+                    lock (_lock)
+                    {
+                        if (_pendingComputations.Count == 0)
+                            break;
+
+                        computation = _pendingComputations.Dequeue();
+                        _enqueuedComputations.Remove(computation);
+                    }
+
+                    if (!computation.Disposed)
+                    {
+                        computation.Execute();
+                    }
+                }
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    _isFlushing = false;
+
+                    // If new computations were added during flush, schedule another flush
+                    if (_pendingComputations.Count > 0)
+                    {
+                        ScheduleFlush();
+                    }
+                }
+            }
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _pendingComputations.Clear();
+                _enqueuedComputations.Clear();
+            }
+        }
+    }
+
+    #endregion
 
     #region IReactiveSystem Implementation
 
@@ -241,8 +562,14 @@ public class SolidReactiveSystem : IReactiveSystem
     /// </summary>
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
-        var signal = new Signal<T>(initialValue, _dependencyTracker);
-        _disposables.Add(signal);
+        ThrowIfDisposed();
+
+        var signal = new Signal<T>(initialValue, _context, _scheduler);
+
+        lock (_lock)
+        {
+            _disposables.Add(signal);
+        }
 
         return (signal.Get, signal.Set);
     }
@@ -252,8 +579,17 @@ public class SolidReactiveSystem : IReactiveSystem
     /// </summary>
     public Func<T> CreateMemo<T>(Func<T> computation)
     {
-        var memo = new Memo<T>(computation, _dependencyTracker);
-        _disposables.Add(memo);
+        ThrowIfDisposed();
+
+        if (computation == null)
+            throw new ArgumentNullException(nameof(computation));
+
+        var memo = new Memo<T>(computation, _context, _scheduler);
+
+        lock (_lock)
+        {
+            _disposables.Add(memo);
+        }
 
         return memo.Get;
     }
@@ -263,19 +599,43 @@ public class SolidReactiveSystem : IReactiveSystem
     /// </summary>
     public void CreateEffect(Action effect)
     {
-        var effectWrapper = new Effect(effect, _dependencyTracker);
-        _disposables.Add(effectWrapper);
+        ThrowIfDisposed();
 
-        // Run immediately
-        effectWrapper.Run();
+        if (effect == null)
+            throw new ArgumentNullException(nameof(effect));
+
+        var effectNode = new Effect(effect, _context, _scheduler);
+
+        lock (_lock)
+        {
+            _disposables.Add(effectNode);
+        }
+
+        // Schedule initial execution (not immediate!)
+        _scheduler.EnqueueComputation(effectNode);
+        _scheduler.ScheduleFlush();
     }
 
     /// <summary>
-    /// Handler for errors that occur in the reactive system
+    /// Runs a batch of updates, deferring effects until the end
     /// </summary>
-    public virtual void HandleError(string errorMessage)
+    public void Batch(Action updates)
     {
-        System.Diagnostics.Debug.WriteLine($"[SolidReactiveSystem Error] {errorMessage}");
+        ThrowIfDisposed();
+
+        if (updates == null)
+            throw new ArgumentNullException(nameof(updates));
+
+        _context.IsBatching = true;
+        try
+        {
+            updates();
+        }
+        finally
+        {
+            _context.IsBatching = false;
+            _scheduler.ScheduleFlush();
+        }
     }
 
     /// <summary>
@@ -285,10 +645,30 @@ public class SolidReactiveSystem : IReactiveSystem
     {
         if (_disposed) return;
 
-        _disposed = true;
-        _disposables.Dispose();
+        lock (_lock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Dispose all reactive nodes
+            foreach (var disposable in _disposables)
+            {
+                disposable.Dispose();
+            }
+
+            _disposables.Clear();
+        }
+
+        _scheduler.Clear();
+        _context.Dispose();
 
         GC.SuppressFinalize(this);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(SolidReactiveSystem));
     }
 
     #endregion

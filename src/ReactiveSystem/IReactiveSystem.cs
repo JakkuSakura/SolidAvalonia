@@ -21,9 +21,4 @@ public interface IReactiveSystem : IDisposable
     /// Creates an effect that runs when dependencies change
     /// </summary>
     void CreateEffect(Action effect);
-    
-    /// <summary>
-    /// Handler for errors that occur in the reactive system
-    /// </summary>
-    void HandleError(string errorMessage);
 }
