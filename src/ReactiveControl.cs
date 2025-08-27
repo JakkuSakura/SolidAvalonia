@@ -10,7 +10,7 @@ public class ReactiveControl<T> : ViewBase
     private bool _isInitialized;
     private readonly Func<T> _getter;
 
-    internal ReactiveControl(IReactiveSystem rs, Func<T> getter)
+    internal ReactiveControl(IReactiveSystem rs, Func<T> getter): base(true)
     {
         _getter = getter;
         Register(rs);

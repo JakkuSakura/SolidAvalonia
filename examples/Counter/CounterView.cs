@@ -8,7 +8,7 @@ using R3;
 namespace Counter;
 
 /// <summary>
-/// Example counter view demonstrating the use of SolidControl with reactive signals, memos, effects, and ReactiveUI throttling
+/// Example counter view demonstrating the use of SolidControl with reactive signals, memos, effects, and throttling
 /// </summary>
 public class CounterView : SolidControl
 {
