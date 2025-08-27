@@ -4,12 +4,7 @@ using Avalonia.Media;
 using SolidAvalonia;
 using Avalonia.Markup.Declarative;
 using SolidAvalonia.Extensions;
-using ReactiveUI;
-using System;
-using System.Reactive.Concurrency;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
+using R3;
 
 namespace Counter;
 
@@ -37,7 +32,7 @@ public class CounterView : SolidControl
 
         // Track last click time for UI display
         var (lastUpdateTime, setLastUpdateTime) = rs.CreateSignal(DateTime.Now.ToString("HH:mm:ss.fff"));
-        var incrementCommand = ReactiveCommand.Create<int>(increment =>
+        var incrementCommand = new ReactiveCommand<int>(increment =>
         {
             setCount(count() + increment);
             setLastUpdateTime(DateTime.Now.ToString("HH:mm:ss.fff"));
@@ -47,8 +42,8 @@ public class CounterView : SolidControl
 
         // Throttle the clicks and execute command
         clickSubject
-            .ThrottleSmart(TimeSpan.FromMilliseconds(500))
-            .SelectMany(v => incrementCommand.Execute(v)).Subscribe();
+            .ThrottleFirst(TimeSpan.FromMilliseconds(500))
+            .Subscribe(v => incrementCommand.Execute(v));
         // 3. Build UI
         return new Border()
             .CornerRadius(10)
@@ -136,39 +131,5 @@ public class CounterView : SolidControl
                         )
                     )
             );
-    }
-}
-
-static class CounterViewExtensions
-{
-    public static IObservable<T> ThrottleSmart<T>(this IObservable<T> source, TimeSpan window,
-        IScheduler scheduler = null)
-    {
-        scheduler ??= Scheduler.Default;
-        return Observable.Create<T>(observer =>
-        {
-            var lastEmit = DateTimeOffset.MinValue;
-
-            var subscription = source.Subscribe(
-                x =>
-                {
-                    var now = scheduler.Now;
-                    var timeSinceLastEmit = now - lastEmit;
-                    var emitNow = timeSinceLastEmit >= window;
-
-                    if (!emitNow)
-                    {
-                        return;
-                    }
-
-                    observer.OnNext(x);
-                    lastEmit = now;
-                },
-                observer.OnError,
-                observer.OnCompleted
-            );
-
-            return subscription;
-        });
     }
 }
