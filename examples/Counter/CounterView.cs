@@ -12,6 +12,13 @@ namespace Counter;
 /// </summary>
 public class CounterView : SolidControl
 {
+    private string value;
+    // If you want to set initial state before Build is called, call base(true) and initialize in the constructor
+    public CounterView() : base(true)
+    {
+        value = "Initialized";
+        Initialize();
+    }
     protected override object Build()
     {
         // 1. Create signals

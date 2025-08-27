@@ -11,10 +11,13 @@ namespace SolidAvalonia;
 public abstract class SolidControl : ViewBase, IReactiveSystem
 {
     protected readonly IReactiveSystem rs = new SolidReactiveSystem();
-    
+    public SolidControl(bool deferredLoading = false) : base(deferredLoading)
+    {
+    }
+
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
-      return rs.CreateSignal(initialValue);
+        return rs.CreateSignal(initialValue);
     }
 
     public Func<T> CreateMemo<T>(Func<T> computation)
@@ -26,8 +29,9 @@ public abstract class SolidControl : ViewBase, IReactiveSystem
     {
         rs.CreateEffect(effect);
     }
+
     public ReactiveControl<T> Reactive<T>(Func<T> func)
-    where T : Control
+        where T : Control
     {
         return new ReactiveControl<T>(rs, func);
     }
