@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Declarative;
 using SolidAvalonia.ReactiveSystem;
 
-namespace SolidAvalonia.Extensions;
+namespace SolidAvalonia;
 
 public class ReactiveControl<T> : ViewBase
     where T : Control

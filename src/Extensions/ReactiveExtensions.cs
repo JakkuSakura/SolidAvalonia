@@ -9,12 +9,6 @@ namespace SolidAvalonia.Extensions;
 /// </summary>
 public static class ReactiveExtensions
 {
-    public static ReactiveControl<T> Reactive<T>(this IReactiveSystem rs, Func<T> getter)
-        where T : Control
-    {
-        return new ReactiveControl<T>(rs, getter);
-    }
-
     public static T Text<T>(this T control, IReactiveSystem rs, Func<string> getter)
         where T : TextBlock
     {

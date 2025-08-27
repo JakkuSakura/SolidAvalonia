@@ -2,6 +2,8 @@
 
 A library for building reactive Avalonia UI applications using the SolidJS programming model. SolidAvalonia brings the elegance and simplicity of SolidJS reactive patterns to Avalonia UI development.
 
+SolidAvalonia is built on top of [Avalonia.Markup.Declarative](https://github.com/AvaloniaUI/Avalonia.Markup.Declarative), which means all existing classes and extension methods from that library are available for use. For reactive components, signals should be accessed inside the `Reactive()` method and using the extension methods provided for markup classes.
+
 ## Features
 
 - **Reactive primitives**: Signals, memos, and effects inspired by SolidJS
@@ -9,12 +11,22 @@ A library for building reactive Avalonia UI applications using the SolidJS progr
 - **Simple component model**: Extend `SolidControl` to create reactive components
 - **Declarative layout helpers**: Build UIs with expressive extension methods
 - **No XAML required**: Pure C# approach to building Avalonia applications
+- **R3 integration**: Seamless integration with R3 for advanced reactive patterns and event handling
+- **Throttling support**: Built-in throttling for UI events to optimize performance
 
 ## Installation
 
 ```bash
+# Install the base library that SolidAvalonia extends
 dotnet add package Avalonia.Markup.Declarative
+
 # Add SolidAvalonia from NuGet when published
+```
+
+To use R3 for reactive programming and throttling features:
+
+```bash
+dotnet add package R3
 ```
 
 ## Getting Started
@@ -24,9 +36,18 @@ dotnet add package Avalonia.Markup.Declarative
 3. Create a new control by extending `SolidControl`
 
 ```csharp
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Markup.Declarative;
+using SolidAvalonia;
+using SolidAvalonia.Extensions;
+
+namespace MyApp;
+
 public class MyComponent : SolidControl
 {
-    public MyComponent()
+    protected override object Build()
     {
         // Create signals
         var (count, setCount) = CreateSignal(0);
@@ -35,12 +56,17 @@ public class MyComponent : SolidControl
         var doubled = CreateMemo(() => count() * 2);
         
         // Create UI with extension methods
-        Content = this.Card(
-            this.VStack(spacing: 20, margin: 0,
-                this.ReactiveText(() => $"Count: {count()}, Doubled: {doubled()}"),
-                this.StyledButton("+", () => setCount(count() + 1))
-            )
-        );
+        return new StackPanel()
+            .Spacing(20)
+            .Children(
+                // Reactive components automatically update when dependencies change
+                Reactive(() => new TextBlock()
+                    .Text(() => $"Count: {count()}, Doubled: {doubled()}")
+                ),
+                new Button()
+                    .Content("+")
+                    .OnClick(_ => setCount(count() + 1))
+            );
         
         // Create effects for side effects
         CreateEffect(() => {
@@ -81,27 +107,154 @@ CreateEffect(() => {
 });
 ```
 
-### Layout Helpers
+### Reactive Components
 
-Build UIs with chainable extensions:
+Create UI components that automatically update when their dependencies change:
 
 ```csharp
-Content = this.Card(
-    this.VStack(spacing: 10, margin: 0,
-        this.StyledText("Hello World", fontSize: 20),
-        this.HStack(spacing: 5, margin: 0,
-            this.StyledButton("Cancel"),
-            this.StyledButton("OK")
-        )
-    )
+Reactive(() => new TextBlock()
+    .Text(() => $"Count: {count()}")
+    .Foreground(() => count() > 0 ? Brushes.Green : Brushes.Red)
 );
+```
+
+### Reactive Extensions
+
+SolidAvalonia provides extension methods for common reactive UI patterns:
+
+#### Text
+
+The `Text` extension method allows you to reactively bind a function to a TextBlock's text:
+
+```csharp
+using Avalonia.Controls;
+using SolidAvalonia.Extensions;
+using SolidAvalonia.ReactiveSystem;
+
+// ...
+
+new TextBlock()
+    .Text(rs, () => $"Count: {count()}")
+```
+
+#### ShowWhen
+
+The `ShowWhen` extension method conditionally shows or hides a control based on a reactive expression:
+
+```csharp
+using Avalonia.Controls;
+using SolidAvalonia.Extensions;
+using SolidAvalonia.ReactiveSystem;
+
+// ...
+
+new Button()
+    .Content("Reset")
+    .ShowWhen(rs, () => count() > 0)
+```
+
+### Layout Helpers
+
+SolidAvalonia leverages Avalonia.Markup.Declarative to build UIs with chainable extensions. All extension methods from Avalonia.Markup.Declarative are available:
+
+```csharp
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Markup.Declarative;
+
+// ...
+
+Content = new Border()
+    .CornerRadius(10)
+    .Padding(25)
+    .Child(
+        new StackPanel()
+            .Spacing(10)
+            .Children(
+                new TextBlock()
+                    .Text("Hello World")
+                    .FontSize(20),
+                new StackPanel()
+                    .Orientation(Orientation.Horizontal)
+                    .Spacing(5)
+                    .Children(
+                        new Button().Content("Cancel"),
+                        new Button().Content("OK")
+                    )
+            )
+    );
+```
+
+When you need to access signals or reactive state within your Avalonia.Markup.Declarative classes, wrap the components in a `Reactive()` call:
+
+```csharp
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Markup.Declarative;
+using SolidAvalonia;
+using SolidAvalonia.Extensions;
+
+// ...
+
+Content = new Border()
+    .CornerRadius(10)
+    .Padding(25)
+    .Child(
+        new StackPanel()
+            .Spacing(10)
+            .Children(
+                // Static content uses normal Avalonia.Markup.Declarative extensions
+                new TextBlock()
+                    .Text("Counter App")
+                    .FontSize(20),
+                
+                // Reactive content that depends on signals
+                Reactive(() => new TextBlock()
+                    .Text(() => $"Count: {count()}")
+                    .Foreground(() => count() > 0 ? Brushes.Green : Brushes.Red)
+                ),
+                
+                // Buttons with event handlers
+                new Button()
+                    .Content("+")
+                    .OnClick(_ => setCount(count() + 1))
+            )
+    );
+```
+
+### Throttling Events with R3
+
+Optimize UI performance with event throttling using R3:
+
+```csharp
+using System;
+using Avalonia.Controls;
+using R3;
+using SolidAvalonia;
+
+// ...
+
+// Create a subject for button clicks
+var clickSubject = new Subject<int>();
+
+// Throttle the clicks using R3's ThrottleFirst operator
+clickSubject
+    .ThrottleFirst(TimeSpan.FromMilliseconds(500))
+    .Subscribe(v => setCount(count() + v));
+    
+// Use in button click handlers
+new Button()
+    .Content("+")
+    .OnClick(_ => { clickSubject.OnNext(step()); })
 ```
 
 ## Example Applications
 
 See the `/examples` directory for sample applications:
 
-- **Counter**: Simple counter demonstrating signals and effects
+- **Counter**: Advanced counter demonstrating signals, memos, effects, and event throttling
 
 ## Contributing
 
