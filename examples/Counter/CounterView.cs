@@ -3,7 +3,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using SolidAvalonia;
 using Avalonia.Markup.Declarative;
-using SolidAvalonia.Extensions;
 using R3;
 
 namespace Counter;
@@ -16,22 +15,22 @@ public class CounterView : SolidControl
     protected override object Build()
     {
         // 1. Create signals
-        var (count, setCount) = rs.CreateSignal(0);
-        var (step, setStep) = rs.CreateSignal(1);
-        var (doubledCount, setDoubledCount) = rs.CreateSignal(0);
+        var (count, setCount) = CreateSignal(0);
+        var (step, setStep) = CreateSignal(1);
+        var (doubledCount, setDoubledCount) = CreateSignal(0);
 
         // ReactiveCommand for increment/decrement operations
 
         // 2. Create derived signals and memos
-        rs.CreateEffect(() => { setDoubledCount(count() * 2); });
+        CreateEffect(() => { setDoubledCount(count() * 2); });
 
-        var isPositive = rs.CreateMemo(() => count() > 0);
-        var isEven = rs.CreateMemo(() => count() % 2 == 0);
+        var isPositive = CreateMemo(() => count() > 0);
+        var isEven = CreateMemo(() => count() % 2 == 0);
 
         rs.CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
 
         // Track last click time for UI display
-        var (lastUpdateTime, setLastUpdateTime) = rs.CreateSignal(DateTime.Now.ToString("HH:mm:ss.fff"));
+        var (lastUpdateTime, setLastUpdateTime) = CreateSignal(DateTime.Now.ToString("HH:mm:ss.fff"));
         var incrementCommand = new ReactiveCommand<int>(increment =>
         {
             setCount(count() + increment);
@@ -61,7 +60,7 @@ public class CounterView : SolidControl
                             .HorizontalAlignment(HorizontalAlignment.Center),
 
                         // Display
-                        rs.Reactive(() => new TextBlock()
+                        Reactive(() => new TextBlock()
                             .Text(() => $"Count: {count()}, Double: {doubledCount()}")
                             .FontSize(16)
                             .TextAlignment(TextAlignment.Center)
@@ -71,7 +70,7 @@ public class CounterView : SolidControl
                         ),
 
                         // Last click time display
-                        rs.Reactive(() => new TextBlock()
+                        Reactive(() => new TextBlock()
                             .Text(() => $"Last Updated: {lastUpdateTime()}")
                             .FontSize(14)
                             .TextAlignment(TextAlignment.Center)
@@ -116,7 +115,7 @@ public class CounterView : SolidControl
                             ),
 
                         // Status indicator
-                        rs.Reactive(() =>
+                        Reactive(() =>
                             new TextBlock()
                                 .Text(() =>
                                 {

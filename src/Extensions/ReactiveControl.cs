@@ -4,13 +4,21 @@ using SolidAvalonia.ReactiveSystem;
 
 namespace SolidAvalonia.Extensions;
 
-public class ReactiveControl<T>(Func<T> getter) : ViewBase
+public class ReactiveControl<T> : ViewBase
     where T : Control
 {
     private bool _isInitialized;
-    protected override object Build() => getter();
+    private readonly Func<T> _getter;
 
-    public void Register(IReactiveSystem rc)
+    internal ReactiveControl(IReactiveSystem rs, Func<T> getter)
+    {
+        _getter = getter;
+        Register(rs);
+    }
+
+    protected override object Build() => _getter();
+
+    private void Register(IReactiveSystem rc)
     {
         rc.CreateEffect(() =>
         {

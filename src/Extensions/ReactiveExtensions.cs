@@ -12,9 +12,7 @@ public static class ReactiveExtensions
     public static ReactiveControl<T> Reactive<T>(this IReactiveSystem rs, Func<T> getter)
         where T : Control
     {
-        var rc = new ReactiveControl<T>(getter);
-        rc.Register(rs);
-        return rc;
+        return new ReactiveControl<T>(rs, getter);
     }
 
     public static T Text<T>(this T control, IReactiveSystem rs, Func<string> getter)
