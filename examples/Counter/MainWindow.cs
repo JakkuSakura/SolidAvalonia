@@ -42,6 +42,28 @@ public class MainWindow : Window
             Padding = new Thickness(10)
         });
         
+        // Add Signal Composition Example tabs
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Signal Functions",
+            Content = SignalCompositionExample.SignalFunctionExample(),
+            Padding = new Thickness(10)
+        });
+        
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Shared Signals",
+            Content = SignalCompositionExample.ComposedComponentsExample(),
+            Padding = new Thickness(10)
+        });
+        
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Theme Toggle",
+            Content = SignalCompositionExample.ThemeToggleExample(),
+            Padding = new Thickness(10)
+        });
+        
         Content = tabControl;
     }
 }

@@ -8,7 +8,7 @@ namespace SolidAvalonia;
 /// Base class for reactive components that can be both inherited from or used functionally.
 /// Provides fine-grained reactivity for building reactive UI components.
 /// </summary>
-public class Component : ViewBase, IReactiveSystem
+public class Component : ViewBase, ISolid
 {
     private bool _isInitialized;
     private readonly Func<Control>? _factory;

@@ -16,4 +16,8 @@
     <EmbeddedResource Remove="examples\**" />
     <None Remove="examples\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="src\Extensions\" />
+  </ItemGroup>
 </Project>
