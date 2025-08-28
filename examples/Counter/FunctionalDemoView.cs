@@ -2,7 +2,6 @@ using Avalonia.Controls;
 using Avalonia;
 using SolidAvalonia;
 
-
 namespace Counter;
 
 /// <summary>

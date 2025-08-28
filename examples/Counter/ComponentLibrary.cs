@@ -40,12 +40,12 @@ public static class ComponentLibrary
     /// <param name="fontSize">Optional font size (default: 20).</param>
     /// <param name="horizontalAlignment">Optional horizontal alignment (default: Center).</param>
     /// <returns>A TextBlock control with reactive text.</returns>
-    public static Reactive<TextBlock> ReactiveHeader(
+    public static Component<TextBlock> ReactiveHeader(
         Func<string> getText,
         double fontSize = 20,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center)
     {
-        return new Reactive<TextBlock>(() => new TextBlock()
+        return new Component<TextBlock>(() => new TextBlock()
             .Text(getText)
             .FontSize(fontSize)
             .FontWeight(FontWeight.Bold)
@@ -77,12 +77,12 @@ public static class ComponentLibrary
     /// <param name="fontSize">Optional font size (default: 14).</param>
     /// <param name="textAlignment">Optional text alignment (default: Left).</param>
     /// <returns>A TextBlock control with reactive text.</returns>
-    public static Reactive<TextBlock> ReactiveLabel(
+    public static Component<TextBlock> ReactiveLabel(
         Func<string> getText,
         double fontSize = 14,
         TextAlignment textAlignment = TextAlignment.Left)
     {
-        return new Reactive<TextBlock>(() => new TextBlock()
+        return new Component<TextBlock>(() => new TextBlock()
             .Text(getText)
             .FontSize(fontSize)
             .TextAlignment(textAlignment));
@@ -114,12 +114,12 @@ public static class ComponentLibrary
     /// <param name="getIsSuccess">Function that determines if the status is successful.</param>
     /// <param name="fontSize">Optional font size (default: 14).</param>
     /// <returns>A TextBlock control with reactive text and color.</returns>
-    public static Reactive<TextBlock> ReactiveStatusText(
+    public static Component<TextBlock> ReactiveStatusText(
         Func<string> getText,
         Func<bool> getIsSuccess,
         double fontSize = 14)
     {
-        return new Reactive<TextBlock>(() => new TextBlock()
+        return new Component<TextBlock>(() => new TextBlock()
             .Text(getText)
             .FontSize(fontSize)
             .Foreground(() => getIsSuccess() ? Brushes.Green : Brushes.Red)

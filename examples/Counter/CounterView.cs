@@ -22,7 +22,7 @@ public class CounterView : Component
         Initialize();
     }
 
-    private Reactive<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
+    private Component<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
     {
         return Reactive(() => new TextBlock()
             .Text(() => $"Count: {count()}, Double: {doubledCount()}")
@@ -34,7 +34,7 @@ public class CounterView : Component
         );
     }
 
-    private Reactive<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
+    private Component<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
     {
         return Reactive(() => new TextBlock()
             .Text(() => $"Last Updated: {lastUpdateTime()}")
@@ -85,7 +85,7 @@ public class CounterView : Component
             );
     }
 
-    private Reactive<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
+    private Component<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
     {
         return Reactive(() =>
             new TextBlock()

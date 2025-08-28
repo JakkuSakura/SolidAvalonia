@@ -91,7 +91,12 @@ public static class FunctionalCounterExample
                                     .Maximum(10)
                                     .CornerRadius(6)
                                     .Width(100)
-                                    .OnValueChanged(e => setStep((int)e.NewValue!.Value))
+                                    .OnValueChanged(e => {
+                                        var source = e.Source as NumericUpDown;
+                                        if (source != null && e.NewValue.HasValue) {
+                                            setStep((int)e.NewValue.Value);
+                                        }
+                                    })
                             ),
                         
                         // Button row

@@ -35,13 +35,14 @@ public static class Solid
         IReactiveSystem.Instance.CreateEffect(effect);
 
     /// <summary>
-    /// Creates a reactive control that automatically updates when dependencies change.
+    /// Creates a component that automatically updates when dependencies change.
     /// </summary>
     /// <typeparam name="T">The type of control to create.</typeparam>
     /// <param name="factory">The function that creates the control.</param>
-    /// <returns>A reactive control that updates when dependencies change.</returns>
-    public static Reactive<T> Component<T>(Func<T> factory) where T : Control => 
+    /// <returns>A component that updates when dependencies change.</returns>
+    public static Component<T> Component<T>(Func<T> factory) where T : Control => 
         new(factory);
+    
     
     /// <summary>
     /// For compatibility with common SolidJS pattern.
@@ -84,10 +85,53 @@ public static class Solid
             Func<Control>? fallback = null) 
             where T : Control
         {
-            return new Reactive<Control>(() => 
+            return new Component<Control>(() => 
                 condition() 
                     ? factory()
                     : fallback?.Invoke() ?? new Panel());
         }
+    }
+    
+    /// <summary>
+    /// Shorthand for creating a signal.
+    /// </summary>
+    public static class Signal
+    {
+        /// <summary>
+        /// Creates a reactive signal with getter and setter.
+        /// </summary>
+        /// <typeparam name="T">The type of the signal value.</typeparam>
+        /// <param name="initialValue">The initial value of the signal.</param>
+        /// <returns>A tuple containing the getter and setter functions.</returns>
+        public static (Func<T>, Action<T>) Create<T>(T initialValue) => 
+            CreateSignal(initialValue);
+    }
+    
+    /// <summary>
+    /// Shorthand for creating a memo.
+    /// </summary>
+    public static class Memo
+    {
+        /// <summary>
+        /// Creates a computed value that automatically updates when dependencies change.
+        /// </summary>
+        /// <typeparam name="T">The type of the computed value.</typeparam>
+        /// <param name="computation">The function that computes the value.</param>
+        /// <returns>A function that returns the computed value.</returns>
+        public static Func<T> Create<T>(Func<T> computation) => 
+            CreateMemo(computation);
+    }
+    
+    /// <summary>
+    /// Shorthand for creating an effect.
+    /// </summary>
+    public static class Effect
+    {
+        /// <summary>
+        /// Creates an effect that runs when dependencies change.
+        /// </summary>
+        /// <param name="effect">The effect function to run.</param>
+        public static void Create(Action effect) => 
+            CreateEffect(effect);
     }
 }
