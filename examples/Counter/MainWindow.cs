@@ -9,12 +9,39 @@ public class MainWindow : Window
 {
     public MainWindow()
     {
-        Title = "SolidAvalonia Example";
-        Width = 400;
-        Height = 300;
+        Title = "SolidAvalonia Examples";
+        Width = 800;
+        Height = 600;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         
-        // Set the CounterView as the main content
-        Content = new CounterView();
+        // Create a tab control to display all examples
+        var tabControl = new TabControl
+        {
+            TabStripPlacement = Dock.Top,
+            Margin = new Thickness(5)
+        };
+        
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Class-based Counter",
+            Content = new CounterView(),
+            Padding = new Thickness(10)
+        });
+        
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Functional Components",
+            Content = new FunctionalDemoView(),
+            Padding = new Thickness(10)
+        });
+        
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Direct Functional Component",
+            Content = FunctionalCounterExample.CreateCounterDisplay(),
+            Padding = new Thickness(10)
+        });
+        
+        Content = tabControl;
     }
 }

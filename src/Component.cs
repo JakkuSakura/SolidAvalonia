@@ -7,9 +7,9 @@ namespace SolidAvalonia;
 /// <summary>
 /// Base class for creating reactive Avalonia controls with SolidJS-like API
 /// </summary>
-public abstract class SolidControl : ViewBase, IReactiveSystem
+public abstract class Component : ViewBase, IReactiveSystem
 {
-    public SolidControl(bool deferredLoading = false) : base(deferredLoading)
+    public Component(bool deferredLoading = false) : base(deferredLoading)
     {
         // Let derived classes override base(true) and call Initialize()
     }

@@ -10,7 +10,7 @@ namespace Counter;
 /// <summary>
 /// Example counter view demonstrating the use of SolidControl with reactive signals, memos, effects, and throttling
 /// </summary>
-public class CounterView : SolidControl
+public class CounterView : Component
 {
 #pragma warning disable CS0414 // Field is assigned but its value is never used
     private string _value;
@@ -151,9 +151,6 @@ public class CounterView : SolidControl
                 new StackPanel()
                     .Spacing(15)
                     .Children(
-                        // Example of using a custom Component Library
-                        ComponentLibrary.Label("Counter Example"),
-                        
                         // Header
                         CreateHeader(),
                         
