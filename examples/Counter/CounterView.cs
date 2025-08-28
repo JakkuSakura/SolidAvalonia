@@ -22,7 +22,7 @@ public class CounterView : SolidControl
         Initialize();
     }
 
-    private ReactiveControl<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
+    private Reactive<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
     {
         return Reactive(() => new TextBlock()
             .Text(() => $"Count: {count()}, Double: {doubledCount()}")
@@ -34,7 +34,7 @@ public class CounterView : SolidControl
         );
     }
 
-    private ReactiveControl<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
+    private Reactive<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
     {
         return Reactive(() => new TextBlock()
             .Text(() => $"Last Updated: {lastUpdateTime()}")
@@ -85,7 +85,7 @@ public class CounterView : SolidControl
             );
     }
 
-    private ReactiveControl<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
+    private Reactive<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
     {
         return Reactive(() =>
             new TextBlock()
@@ -105,7 +105,7 @@ public class CounterView : SolidControl
     private TextBlock CreateHeader()
     {
         return new TextBlock()
-            .Text("Solid-Style Counter with Throttling")
+            .Text("SolidJS-style Counter with Throttling")
             .FontSize(20)
             .FontWeight(FontWeight.Bold)
             .HorizontalAlignment(HorizontalAlignment.Center);
@@ -124,7 +124,7 @@ public class CounterView : SolidControl
         var isPositive = CreateMemo(() => count() > 0);
         var isEven = CreateMemo(() => count() % 2 == 0);
 
-        rs.CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
+        CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
 
         // Track last click time for UI display
         var (lastUpdateTime, setLastUpdateTime) = CreateSignal(DateTime.Now.ToString("HH:mm:ss.fff"));
@@ -151,9 +151,12 @@ public class CounterView : SolidControl
                 new StackPanel()
                     .Spacing(15)
                     .Children(
+                        // Example of using a custom Component Library
+                        ComponentLibrary.Label("Counter Example"),
+                        
                         // Header
                         CreateHeader(),
-
+                        
                         // Display
                         CreateCountDisplay(count, doubledCount, isPositive),
 

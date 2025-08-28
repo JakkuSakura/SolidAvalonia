@@ -5,12 +5,18 @@ namespace SolidAvalonia.ReactiveSystem;
 /// <summary>
 /// High-performance reactive system implementation with explicit dependency tracking
 /// </summary>
-public class SolidReactiveSystem : IReactiveSystem
+internal class SolidReactiveSystem : IReactiveSystem
 {
     private readonly ComputationContext _context = new();
     private readonly Scheduler _scheduler = new();
     private readonly List<IDisposable> _disposables = new();
     private bool _disposed;
+
+    // Private constructor to prevent external instantiation
+    internal SolidReactiveSystem()
+    {
+    }
+
 
     #region Core Types
 
@@ -22,29 +28,17 @@ public class SolidReactiveSystem : IReactiveSystem
         private readonly Stack<Computation> _computationStack = new();
 
         public Computation? Current => _computationStack.Count > 0 ? _computationStack.Peek() : null;
-
-        public void Push(Computation computation)
-        {
-            _computationStack.Push(computation);
-        }
-
         public bool IsBatching;
+
+        public void Push(Computation computation) => _computationStack.Push(computation);
 
         public void Pop()
         {
-            if (_computationStack.Count > 0)
-                _computationStack.Pop();
+            if (_computationStack.Count > 0) _computationStack.Pop();
         }
 
-        public void Clear()
-        {
-            _computationStack.Clear();
-        }
-
-        public void Dispose()
-        {
-            Clear();
-        }
+        public void Clear() => _computationStack.Clear();
+        public void Dispose() => Clear();
     }
 
     /// <summary>
@@ -54,7 +48,6 @@ public class SolidReactiveSystem : IReactiveSystem
     {
         protected readonly object SyncRoot = new();
         public bool Disposed;
-
         public long Version { get; protected set; }
         public abstract void Dispose();
     }
@@ -449,7 +442,6 @@ public class SolidReactiveSystem : IReactiveSystem
             }
 
             // Schedule on next frame/tick
-            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
             if (Dispatcher.UIThread != null)
             {
                 Dispatcher.UIThread.Post(Flush, DispatcherPriority.Normal);
@@ -526,11 +518,8 @@ public class SolidReactiveSystem : IReactiveSystem
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
         ThrowIfDisposed();
-
         var signal = new Signal<T>(initialValue, _context, _scheduler);
-
         _disposables.Add(signal);
-
         return (signal.Get, signal.Set);
     }
 
@@ -540,14 +529,10 @@ public class SolidReactiveSystem : IReactiveSystem
     public Func<T> CreateMemo<T>(Func<T> computation)
     {
         ThrowIfDisposed();
-
-        if (computation == null)
-            throw new ArgumentNullException(nameof(computation));
+        if (computation == null) throw new ArgumentNullException(nameof(computation));
 
         var memo = new Memo<T>(computation, _context, _scheduler);
         _disposables.Add(memo);
-
-
         return memo.Get;
     }
 
@@ -557,15 +542,12 @@ public class SolidReactiveSystem : IReactiveSystem
     public void CreateEffect(Action effect)
     {
         ThrowIfDisposed();
-
-        if (effect == null)
-            throw new ArgumentNullException(nameof(effect));
+        if (effect == null) throw new ArgumentNullException(nameof(effect));
 
         var effectNode = new Effect(effect, _context, _scheduler);
-
         _disposables.Add(effectNode);
 
-        // Schedule initial execution (not immediate!)
+        // Schedule initial execution
         _scheduler.EnqueueComputation(effectNode);
         _scheduler.ScheduleFlush();
     }
@@ -576,9 +558,7 @@ public class SolidReactiveSystem : IReactiveSystem
     public void Batch(Action updates)
     {
         ThrowIfDisposed();
-
-        if (updates == null)
-            throw new ArgumentNullException(nameof(updates));
+        if (updates == null) throw new ArgumentNullException(nameof(updates));
 
         _context.IsBatching = true;
         try
@@ -598,19 +578,14 @@ public class SolidReactiveSystem : IReactiveSystem
     public void Dispose()
     {
         if (_disposed) return;
-
-        if (_disposed) return;
         _disposed = true;
 
-        // Dispose all reactive nodes
         foreach (var disposable in _disposables)
         {
             disposable.Dispose();
         }
 
         _disposables.Clear();
-
-
         _scheduler.Clear();
         _context.Dispose();
 
@@ -619,8 +594,7 @@ public class SolidReactiveSystem : IReactiveSystem
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(SolidReactiveSystem));
+        if (_disposed) throw new ObjectDisposedException(nameof(SolidReactiveSystem));
     }
 
     #endregion
