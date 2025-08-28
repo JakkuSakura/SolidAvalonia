@@ -15,9 +15,9 @@ public abstract class Component : ViewBase, IReactiveSystem
     }
 
     // Implement IReactiveSystem interface methods by delegating to the global system
-    public (Func<T>, Action<T>) CreateSignal<T>(T initialValue) => IReactiveSystem.Instance.CreateSignal(initialValue);
-    public Func<T> CreateMemo<T>(Func<T> computation) => IReactiveSystem.Instance.CreateMemo(computation);
-    public void CreateEffect(Action effect) => IReactiveSystem.Instance.CreateEffect(effect);
+    public (Func<T>, Action<T>) CreateSignal<T>(T initialValue) => Solid.CreateSignal(initialValue);
+    public Func<T> CreateMemo<T>(Func<T> computation) => Solid.CreateMemo(computation);
+    public void CreateEffect(Action effect) => Solid.CreateEffect(effect);
 
     // Create a reactive control with the current reactive system
     public Reactive<T> Reactive<T>(Func<T> func) where T : Control => new(func);
