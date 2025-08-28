@@ -12,21 +12,111 @@ namespace Counter;
 /// </summary>
 public class CounterView : SolidControl
 {
-    private string value;
+#pragma warning disable CS0414 // Field is assigned but its value is never used
+    private string _value;
+#pragma warning restore CS0414 // Field is assigned but its value is never used
     // If you want to set initial state before Build is called, call base(true) and initialize in the constructor
     public CounterView() : base(true)
     {
-        value = "Initialized";
+        _value = "Initialized";
         Initialize();
     }
+
+    private ReactiveControl<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
+    {
+        return Reactive(() => new TextBlock()
+            .Text(() => $"Count: {count()}, Double: {doubledCount()}")
+            .FontSize(16)
+            .TextAlignment(TextAlignment.Center)
+            .Foreground(() => isPositive() ? Brushes.Green :
+                count() == 0 ? Brushes.Blue : Brushes.Red
+            )
+        );
+    }
+
+    private ReactiveControl<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
+    {
+        return Reactive(() => new TextBlock()
+            .Text(() => $"Last Updated: {lastUpdateTime()}")
+            .FontSize(14)
+            .TextAlignment(TextAlignment.Center)
+        );
+    }
+
+    private StackPanel CreateStepSelector(Func<int> step, Action<int> setStep)
+    {
+        return new StackPanel()
+            .Orientation(Orientation.Horizontal)
+            .Spacing(5)
+            .HorizontalAlignment(HorizontalAlignment.Center)
+            .Children(
+                new TextBlock()
+                    .Text("Step Size:")
+                    .VerticalAlignment(VerticalAlignment.Center),
+                new NumericUpDown()
+                    .Value(step())
+                    .Minimum(1)
+                    .Maximum(10)
+                    .CornerRadius(6)
+                    .Width(100)
+                    .OnValueChanged(e => { setStep((int)e.NewValue!.Value); })
+            );
+    }
+
+    private StackPanel CreateButtonRow(Func<int> step, Subject<int> clickSubject, Action<int> setCount)
+    {
+        return new StackPanel()
+            .Orientation(Orientation.Horizontal)
+            .Spacing(10)
+            .HorizontalAlignment(HorizontalAlignment.Center)
+            .Children(
+                new Button()
+                    .Content("-")
+                    .MinWidth(80)
+                    .OnClick(_ => { clickSubject.OnNext(-step()); }),
+                new Button()
+                    .Content("Reset")
+                    .MinWidth(80)
+                    .OnClick(_ => setCount(0)),
+                new Button()
+                    .Content("+")
+                    .MinWidth(80)
+                    .OnClick(_ => { clickSubject.OnNext(step()); })
+            );
+    }
+
+    private ReactiveControl<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
+    {
+        return Reactive(() =>
+            new TextBlock()
+                .Text(() =>
+                {
+                    var evenText = isEven() ? "Even" : "Odd";
+                    var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
+                    return $"{evenText} • {signText} • Throttled to 2 clicks/sec";
+                })
+                .FontSize(14)
+                .TextAlignment(TextAlignment.Center)
+                .Foreground(() => isPositive() ? Brushes.Green :
+                    count() == 0 ? Brushes.Blue : Brushes.Red)
+        );
+    }
+
+    private TextBlock CreateHeader()
+    {
+        return new TextBlock()
+            .Text("Solid-Style Counter with Throttling")
+            .FontSize(20)
+            .FontWeight(FontWeight.Bold)
+            .HorizontalAlignment(HorizontalAlignment.Center);
+    }
+
     protected override object Build()
     {
         // 1. Create signals
         var (count, setCount) = CreateSignal(0);
         var (step, setStep) = CreateSignal(1);
         var (doubledCount, setDoubledCount) = CreateSignal(0);
-
-        // ReactiveCommand for increment/decrement operations
 
         // 2. Create derived signals and memos
         CreateEffect(() => { setDoubledCount(count() * 2); });
@@ -43,6 +133,7 @@ public class CounterView : SolidControl
             setCount(count() + increment);
             setLastUpdateTime(DateTime.Now.ToString("HH:mm:ss.fff"));
         });
+        
         // Create a subject for button clicks
         var clickSubject = new Subject<int>();
 
@@ -50,6 +141,7 @@ public class CounterView : SolidControl
         clickSubject
             .ThrottleFirst(TimeSpan.FromMilliseconds(500))
             .Subscribe(v => incrementCommand.Execute(v));
+
         // 3. Build UI
         return new Border()
             .CornerRadius(10)
@@ -60,81 +152,22 @@ public class CounterView : SolidControl
                     .Spacing(15)
                     .Children(
                         // Header
-                        new TextBlock()
-                            .Text("Solid-Style Counter with Throttling")
-                            .FontSize(20)
-                            .FontWeight(FontWeight.Bold)
-                            .HorizontalAlignment(HorizontalAlignment.Center),
+                        CreateHeader(),
 
                         // Display
-                        Reactive(() => new TextBlock()
-                            .Text(() => $"Count: {count()}, Double: {doubledCount()}")
-                            .FontSize(16)
-                            .TextAlignment(TextAlignment.Center)
-                            .Foreground(() => isPositive() ? Brushes.Green :
-                                count() == 0 ? Brushes.Blue : Brushes.Red
-                            )
-                        ),
+                        CreateCountDisplay(count, doubledCount, isPositive),
 
                         // Last click time display
-                        Reactive(() => new TextBlock()
-                            .Text(() => $"Last Updated: {lastUpdateTime()}")
-                            .FontSize(14)
-                            .TextAlignment(TextAlignment.Center)
-                        ),
+                        CreateLastUpdateDisplay(lastUpdateTime),
 
                         // Step section
-                        new StackPanel()
-                            .Orientation(Orientation.Horizontal)
-                            .Spacing(5)
-                            .HorizontalAlignment(HorizontalAlignment.Center)
-                            .Children(
-                                new TextBlock()
-                                    .Text("Step Size:")
-                                    .VerticalAlignment(VerticalAlignment.Center),
-                                new NumericUpDown()
-                                    .Value(step())
-                                    .Minimum(1)
-                                    .Maximum(10)
-                                    .CornerRadius(6)
-                                    .Width(100)
-                                    .OnValueChanged(e => { setStep((int)e.NewValue!.Value); })
-                            ),
+                        CreateStepSelector(step, setStep),
 
                         // Button row
-                        new StackPanel()
-                            .Orientation(Orientation.Horizontal)
-                            .Spacing(10)
-                            .HorizontalAlignment(HorizontalAlignment.Center)
-                            .Children(
-                                new Button()
-                                    .Content("-")
-                                    .MinWidth(80)
-                                    .OnClick(_ => { clickSubject.OnNext(-step()); }),
-                                new Button()
-                                    .Content("Reset")
-                                    .MinWidth(80)
-                                    .OnClick(_ => setCount(0)),
-                                new Button()
-                                    .Content("+")
-                                    .MinWidth(80)
-                                    .OnClick(_ => { clickSubject.OnNext(step()); })
-                            ),
+                        CreateButtonRow(step, clickSubject, setCount),
 
                         // Status indicator
-                        Reactive(() =>
-                            new TextBlock()
-                                .Text(() =>
-                                {
-                                    var evenText = isEven() ? "Even" : "Odd";
-                                    var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
-                                    return $"{evenText} • {signText} • Throttled to 2 clicks/sec";
-                                })
-                                .FontSize(14)
-                                .TextAlignment(TextAlignment.Center)
-                                .Foreground(() => isPositive() ? Brushes.Green :
-                                    count() == 0 ? Brushes.Blue : Brushes.Red)
-                        )
+                        CreateStatusIndicator(isEven, isPositive, count)
                     )
             );
     }
