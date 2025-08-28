@@ -5,65 +5,54 @@ using Avalonia.Media;
 
 namespace Counter;
 
+/// <summary>
+/// Main window for the SolidAvalonia examples application.
+/// Presents a catalog of examples demonstrating various patterns and techniques.
+/// </summary>
 public class MainWindow : Window
 {
     public MainWindow()
     {
+        // Configure window properties
         Title = "SolidAvalonia Examples";
-        Width = 800;
-        Height = 600;
+        Width = 900;
+        Height = 700;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         
-        // Create a tab control to display all examples
-        var tabControl = new TabControl
+        // Create a header with title and description
+        var header = new StackPanel
         {
-            TabStripPlacement = Dock.Top,
-            Margin = new Thickness(5)
+            Spacing = 5,
+            Margin = new Thickness(0, 0, 0, 10)
         };
         
-        tabControl.Items.Add(new TabItem
+        header.Children.Add(new TextBlock
         {
-            Header = "Class-based Counter",
-            Content = new CounterView(),
-            Padding = new Thickness(10)
+            Text = "SolidAvalonia Examples",
+            FontSize = 24,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center
         });
         
-        tabControl.Items.Add(new TabItem
+        header.Children.Add(new TextBlock
         {
-            Header = "Functional Components",
-            Content = new FunctionalDemoView(),
-            Padding = new Thickness(10)
+            Text = "Explore different approaches to building reactive UI components",
+            FontSize = 16,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Foreground = new SolidColorBrush(Color.FromRgb(80, 80, 80))
         });
         
-        tabControl.Items.Add(new TabItem
-        {
-            Header = "Direct Functional Component",
-            Content = FunctionalCounterExample.CreateCounterDisplay(),
-            Padding = new Thickness(10)
-        });
+        // Create the examples catalog that contains all example components
+        var examplesCatalog = new ExamplesCatalog();
         
-        // Add Signal Composition Example tabs
-        tabControl.Items.Add(new TabItem
+        // Combine header and content in a main layout panel
+        var mainPanel = new StackPanel
         {
-            Header = "Signal Functions",
-            Content = SignalCompositionExample.SignalFunctionExample(),
-            Padding = new Thickness(10)
-        });
+            Margin = new Thickness(10),
+            Children = { header, examplesCatalog }
+        };
         
-        tabControl.Items.Add(new TabItem
-        {
-            Header = "Shared Signals",
-            Content = SignalCompositionExample.ComposedComponentsExample(),
-            Padding = new Thickness(10)
-        });
-        
-        tabControl.Items.Add(new TabItem
-        {
-            Header = "Theme Toggle",
-            Content = SignalCompositionExample.ThemeToggleExample(),
-            Padding = new Thickness(10)
-        });
-        
-        Content = tabControl;
+        // Set the content of the window
+        Content = mainPanel;
     }
 }

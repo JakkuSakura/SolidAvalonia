@@ -5,23 +5,32 @@ using SolidAvalonia;
 using Avalonia.Markup.Declarative;
 using R3;
 
-namespace Counter;
+namespace Counter.ClassBased;
 
 /// <summary>
-/// Example counter view demonstrating the use of SolidControl with reactive signals, memos, effects, and throttling
+/// Example of a counter component built using the class-based approach with SolidAvalonia.
+/// 
+/// This example demonstrates:
+/// - Creating reactive components by inheriting from Component class
+/// - Using signals, memos, and effects within a class component
+/// - Breaking down the UI into reusable sub-components with clean separation
+/// - Throttling user interactions using Reactive Extensions
 /// </summary>
-public class CounterView : Component
+public class ClassBasedCounter : Component
 {
-#pragma warning disable CS0414 // Field is assigned but its value is never used
-    private string _value;
-#pragma warning restore CS0414 // Field is assigned but its value is never used
-    // If you want to set initial state before Build is called, call base(true) and initialize in the constructor
-    public CounterView() : base(true)
+    /// <summary>
+    /// Creates a new instance of the class-based counter component.
+    /// Uses deferred initialization to set up initial state before Build is called.
+    /// </summary>
+    public ClassBasedCounter() : base(true)
     {
-        _value = "Initialized";
         Initialize();
     }
 
+    /// <summary>
+    /// Creates a component that displays the current count and its doubled value
+    /// with reactive styling based on the count value.
+    /// </summary>
     private Component<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
     {
         return Reactive(() => new TextBlock()
@@ -34,6 +43,9 @@ public class CounterView : Component
         );
     }
 
+    /// <summary>
+    /// Creates a component that displays the last update timestamp.
+    /// </summary>
     private Component<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
     {
         return Reactive(() => new TextBlock()
@@ -43,6 +55,9 @@ public class CounterView : Component
         );
     }
 
+    /// <summary>
+    /// Creates a component for selecting the increment/decrement step size.
+    /// </summary>
     private StackPanel CreateStepSelector(Func<int> step, Action<int> setStep)
     {
         return new StackPanel()
@@ -63,6 +78,9 @@ public class CounterView : Component
             );
     }
 
+    /// <summary>
+    /// Creates a row of buttons for incrementing, decrementing, and resetting the counter.
+    /// </summary>
     private StackPanel CreateButtonRow(Func<int> step, Subject<int> clickSubject, Action<int> setCount)
     {
         return new StackPanel()
@@ -85,6 +103,9 @@ public class CounterView : Component
             );
     }
 
+    /// <summary>
+    /// Creates a component that displays the counter's status (even/odd, positive/negative).
+    /// </summary>
     private Component<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
     {
         return Reactive(() =>
@@ -102,28 +123,35 @@ public class CounterView : Component
         );
     }
 
+    /// <summary>
+    /// Creates the header component for the counter.
+    /// </summary>
     private TextBlock CreateHeader()
     {
         return new TextBlock()
-            .Text("SolidJS-style Counter with Throttling")
+            .Text("Class-based Counter with Throttling")
             .FontSize(20)
             .FontWeight(FontWeight.Bold)
             .HorizontalAlignment(HorizontalAlignment.Center);
     }
 
+    /// <summary>
+    /// Builds the component by creating signals, memos, effects, and composing the UI.
+    /// </summary>
     protected override object Build()
     {
-        // 1. Create signals
+        // 1. Create signals for state management
         var (count, setCount) = CreateSignal(0);
         var (step, setStep) = CreateSignal(1);
         var (doubledCount, setDoubledCount) = CreateSignal(0);
 
-        // 2. Create derived signals and memos
+        // 2. Create derived values with memos and effects
         CreateEffect(() => { setDoubledCount(count() * 2); });
 
         var isPositive = CreateMemo(() => count() > 0);
         var isEven = CreateMemo(() => count() % 2 == 0);
 
+        // Log state changes to console for debugging
         CreateEffect(() => { Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}"); });
 
         // Track last click time for UI display
@@ -134,15 +162,15 @@ public class CounterView : Component
             setLastUpdateTime(DateTime.Now.ToString("HH:mm:ss.fff"));
         });
         
-        // Create a subject for button clicks
+        // Create a subject for throttling button clicks
         var clickSubject = new Subject<int>();
 
-        // Throttle the clicks and execute command
+        // Throttle the clicks to prevent rapid-fire clicking
         clickSubject
             .ThrottleFirst(TimeSpan.FromMilliseconds(500))
             .Subscribe(v => incrementCommand.Execute(v));
 
-        // 3. Build UI
+        // 3. Build UI by composing components
         return new Border()
             .CornerRadius(10)
             .Padding(25)
@@ -154,16 +182,16 @@ public class CounterView : Component
                         // Header
                         CreateHeader(),
                         
-                        // Display
+                        // Main counter display
                         CreateCountDisplay(count, doubledCount, isPositive),
 
-                        // Last click time display
+                        // Last update timestamp
                         CreateLastUpdateDisplay(lastUpdateTime),
 
-                        // Step section
+                        // Step size selector
                         CreateStepSelector(step, setStep),
 
-                        // Button row
+                        // Control buttons
                         CreateButtonRow(step, clickSubject, setCount),
 
                         // Status indicator

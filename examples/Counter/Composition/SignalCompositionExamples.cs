@@ -3,62 +3,30 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Markup.Declarative;
-using static SolidAvalonia.Solid; // Import Solid functions statically
+using Counter.Common;
+using static SolidAvalonia.Solid;
 
-namespace Counter;
+namespace Counter.Composition;
 
 /// <summary>
-/// Example of using Component with functions that depend on signals
+/// Examples of using Component with functions that depend on signals and composition patterns.
+/// 
+/// This class demonstrates:
+/// - Creating reusable UI components that work with signals
+/// - Composing components together with shared state
+/// - Creating and using signal-dependent functions
+/// - Theme switching and dynamic styling
 /// </summary>
-public static class SignalCompositionExample
+public static class SignalCompositionExamples
 {
-    // Simple Text Display component
-    public static Control TextDisplay(Func<string> getText, Func<IBrush>? getColor = null)
-    {
-        return new TextBlock()
-            .Text(getText)
-            .FontSize(16)
-            .Foreground(getColor ?? (() => Brushes.Black))
-            .HorizontalAlignment(HorizontalAlignment.Center);
-    }
-    
-    // Status Indicator component
-    public static Control StatusIndicator(Func<string> getText, Func<IBrush> getBackground, Func<IBrush>? getForeground = null)
-    {
-        return new Border()
-            .Background(getBackground)
-            .CornerRadius(5)
-            .Padding(10)
-            .Child(new TextBlock()
-                .Text(getText)
-                .Foreground(getForeground ?? (() => Brushes.Black))
-                .HorizontalAlignment(HorizontalAlignment.Center)
-            );
-    }
-    
-    // Button Row component
-    public static Control ButtonRow(params (string content, Action<RoutedEventArgs> onClick, IBrush? background)[] buttons)
-    {
-        return new StackPanel()
-            .Orientation(Orientation.Horizontal)
-            .Spacing(10)
-            .HorizontalAlignment(HorizontalAlignment.Center)
-            .Children(buttons.Select(btn => {
-                var button = new Button()
-                    .Content(btn.content)
-                    .MinWidth(80)
-                    .OnClick(btn.onClick);
-                
-                if (btn.background != null)
-                {
-                    button = button.Background(btn.background);
-                }
-                
-                return (Control)button;
-            }).ToArray());
-    }
-    
-    // Signal Function Example
+    /// <summary>
+    /// Example demonstrating how to create and use functions that depend on signals.
+    /// 
+    /// Features:
+    /// - Signal-dependent text formatting
+    /// - Signal-dependent color computation
+    /// - Reactive components using custom functions
+    /// </summary>
     public static Control SignalFunctionExample()
     {
         // Create reactive state
@@ -81,24 +49,30 @@ public static class SignalCompositionExample
             .Spacing(20)
             .HorizontalAlignment(HorizontalAlignment.Center)
             .Children(
-                // Header
-                new TextBlock()
-                    .Text("Signal-based Functions")
-                    .FontSize(18)
-                    .FontWeight(FontWeight.Bold)
-                    .HorizontalAlignment(HorizontalAlignment.Center),
+                // Header with explanation
+                new StackPanel()
+                    .Spacing(5)
+                    .Children(
+                        SignalComponents.Header("Signal-based Functions"),
+                        new TextBlock()
+                            .Text("This example shows how functions can depend on signals and update automatically")
+                            .FontSize(14)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .MaxWidth(400)
+                            .TextAlignment(TextAlignment.Center)
+                    ),
                 
                 // Using Component with text display
-                Component(() => TextDisplay(getDisplayText, getTextColor)),
+                Component(() => SignalComponents.TextDisplay(getDisplayText, getTextColor)),
                 
                 // Buttons for count
-                ButtonRow(
+                SignalComponents.ButtonRow(
                     ("Increment", _ => setCount(count() + 1), null),
                     ("Reset", _ => setCount(0), null)
                 ),
                 
                 // Color selection buttons
-                ButtonRow(
+                SignalComponents.ButtonRow(
                     ("Red", _ => setColor("Red"), Brushes.LightPink),
                     ("Green", _ => setColor("Green"), Brushes.LightGreen),
                     ("Blue", _ => setColor("Blue"), Brushes.LightBlue)
@@ -106,8 +80,15 @@ public static class SignalCompositionExample
             );
     }
     
-    // Composed Components Example
-    public static Control ComposedComponentsExample()
+    /// <summary>
+    /// Example demonstrating how multiple components can share signals for coordinated updates.
+    /// 
+    /// Features:
+    /// - Multiple components sharing the same signal
+    /// - Input field connected to signals
+    /// - Derived values with memos
+    /// </summary>
+    public static Control SharedSignalsExample()
     {
         // Create shared signals that will be used across components
         var (count, setCount) = CreateSignal(0);
@@ -124,41 +105,38 @@ public static class SignalCompositionExample
             .Spacing(20)
             .HorizontalAlignment(HorizontalAlignment.Center)
             .Children(
-                // Header
-                new TextBlock()
-                    .Text("Shared Signals Example")
-                    .FontSize(18)
-                    .FontWeight(FontWeight.Bold)
-                    .HorizontalAlignment(HorizontalAlignment.Center),
-                
-                // Input for name
+                // Header with explanation
                 new StackPanel()
-                    .Orientation(Orientation.Horizontal)
-                    .Spacing(10)
-                    .HorizontalAlignment(HorizontalAlignment.Center)
+                    .Spacing(5)
                     .Children(
+                        SignalComponents.Header("Shared Signals Example"),
                         new TextBlock()
-                            .Text("Your Name:")
-                            .VerticalAlignment(VerticalAlignment.Center),
-                        
-                        new TextBox()
-                            .Text(name())
-                            .Width(200)
-                            .OnTextChanged(e => {
-                                var source = e.Source as TextBox;
-                                if (source != null) {
-                                    setName(source.Text ?? "");
-                                }
-                            })
+                            .Text("Multiple components can share signals to coordinate their state")
+                            .FontSize(14)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .MaxWidth(400)
+                            .TextAlignment(TextAlignment.Center)
                     ),
                 
+                // Input for name
+                SignalComponents.LabeledTextInput(
+                    "Your Name:", 
+                    name(),
+                    e => {
+                        var source = e.Source as TextBox;
+                        if (source != null) {
+                            setName(source.Text ?? "");
+                        }
+                    }
+                ),
+                
                 // Components using shared signals
-                Component(() => TextDisplay(getGreeting)),
-                Component(() => TextDisplay(
+                Component(() => SignalComponents.TextDisplay(getGreeting)),
+                Component(() => SignalComponents.TextDisplay(
                     getCountDisplay, 
                     () => isEven() ? Brushes.Green : Brushes.Red
                 )),
-                Component(() => StatusIndicator(
+                Component(() => SignalComponents.StatusIndicator(
                     () => isEven() ? "Even count" : "Odd count",
                     () => isEven() 
                         ? new SolidColorBrush(Color.FromRgb(220, 255, 220)) 
@@ -166,14 +144,21 @@ public static class SignalCompositionExample
                 )),
                 
                 // Control buttons
-                ButtonRow(
+                SignalComponents.ButtonRow(
                     ("Increment", _ => setCount(count() + 1), null),
                     ("Reset", _ => setCount(0), null)
                 )
             );
     }
     
-    // Theme Toggle Example
+    /// <summary>
+    /// Example demonstrating theme toggling and dynamic styling with signals.
+    /// 
+    /// Features:
+    /// - Theme state management
+    /// - Dynamic styling based on theme
+    /// - Component composition with theme awareness
+    /// </summary>
     public static Control ThemeToggleExample()
     {
         // Create shared signals
@@ -195,34 +180,40 @@ public static class SignalCompositionExample
             .Spacing(20)
             .HorizontalAlignment(HorizontalAlignment.Center)
             .Children(
-                // Header
-                new TextBlock()
-                    .Text("Theme Toggle Example")
-                    .FontSize(18)
-                    .FontWeight(FontWeight.Bold)
-                    .HorizontalAlignment(HorizontalAlignment.Center),
+                // Header with explanation
+                new StackPanel()
+                    .Spacing(5)
+                    .Children(
+                        SignalComponents.Header("Theme Toggle Example"),
+                        new TextBlock()
+                            .Text("This example shows how signals can control themes and styling")
+                            .FontSize(14)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .MaxWidth(400)
+                            .TextAlignment(TextAlignment.Center)
+                    ),
                 
                 // Use components with signal-dependent functions
-                Component(() => StatusIndicator(
+                Component(() => SignalComponents.StatusIndicator(
                     getCountText,
                     () => new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)),
                     getCountColor
                 )),
                 
-                Component(() => StatusIndicator(
+                Component(() => SignalComponents.StatusIndicator(
                     getThemeText,
                     () => new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)),
                     getThemeColor
                 )),
                 
                 // Control buttons
-                ButtonRow(
+                SignalComponents.ButtonRow(
                     ("Increment", _ => setCount(count() + 1), null),
                     ("Toggle Theme", _ => setTheme(isDarkTheme() ? "Light" : "Dark"), null)
                 ),
                 
                 // Theme-based background
-                Component(() => StatusIndicator(
+                Component(() => SignalComponents.StatusIndicator(
                     () => $"This background changes with the theme ({theme()})",
                     () => isDarkTheme() 
                         ? new SolidColorBrush(Color.FromRgb(50, 50, 50)) 

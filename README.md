@@ -8,7 +8,7 @@ SolidAvalonia is built on top of [Avalonia.Markup.Declarative](https://github.co
 
 - **Reactive primitives**: Signals, memos, and effects inspired by SolidJS
 - **Automatic dependency tracking**: Components automatically update when their dependencies change
-- **Simple component model**: Extend `SolidControl` to create reactive components
+- **Simple component model**: Extend `Component` to create reactive components
 - **Declarative layout helpers**: Build UIs with expressive extension methods
 - **No XAML required**: Pure C# approach to building Avalonia applications
 - **R3 integration**: Seamless integration with R3 for advanced reactive patterns and event handling
@@ -33,7 +33,7 @@ dotnet add package R3
 
 1. Create a new Avalonia application
 2. Add the SolidAvalonia library
-3. Create a new control by extending `SolidControl`
+3. Create a new control by extending `Component`
 
 ```csharp
 using Avalonia.Controls;
@@ -41,11 +41,11 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Markup.Declarative;
 using SolidAvalonia;
-using SolidAvalonia.Extensions;
+using static SolidAvalonia.Solid;
 
 namespace MyApp;
 
-public class MyComponent : SolidControl
+public class MyComponent : Component
 {
     protected override object Build()
     {
@@ -254,7 +254,14 @@ new Button()
 
 See the `/examples` directory for sample applications:
 
-- **Counter**: Advanced counter demonstrating signals, memos, effects, and event throttling
+- **Counter**: A comprehensive example collection demonstrating:
+  - Class-based components with inheritance
+  - Functional components with pure functions
+  - Component composition with shared signals
+  - Dynamic theming and styling
+  - List rendering with For.Each
+  - Conditional rendering with Show.When
+  - Throttling for performance optimization
 
 ## Contributing
 

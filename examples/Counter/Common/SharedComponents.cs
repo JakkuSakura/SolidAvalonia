@@ -5,12 +5,13 @@ using SolidAvalonia;
 using Avalonia.Markup.Declarative;
 using Avalonia.Interactivity;
 
-namespace Counter;
+namespace Counter.Common;
 
 /// <summary>
-/// A static library of reusable Avalonia components following the functional style.
+/// A library of reusable UI components following functional design patterns.
+/// These components can be used in both class-based and functional implementations.
 /// </summary>
-public static class ComponentLibrary
+public static class SharedComponents
 {
     #region Text Components
 

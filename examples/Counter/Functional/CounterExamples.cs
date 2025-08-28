@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -5,15 +6,29 @@ using Avalonia.Markup.Declarative;
 using R3;
 using static SolidAvalonia.Solid; // Import Solid functions statically
 
-namespace Counter;
+namespace Counter.Functional;
 
 /// <summary>
-/// Example of a functional approach to creating Avalonia components using SolidAvalonia
+/// Examples of the functional approach to creating Avalonia components using SolidAvalonia.
+/// 
+/// This class demonstrates:
+/// - Creating reactive components using pure functions
+/// - Declarative UI construction with signals and memos
+/// - Using Component() for reactive wrappers
+/// - Creating components with controlled state
 /// </summary>
-public static class FunctionalCounterExample
+public static class CounterExamples
 {
-    // Functional component that creates a counter display
-    public static Control CreateCounterDisplay(int initialCount = 0, int initialStep = 1)
+    /// <summary>
+    /// A full-featured counter component with throttling, created using the functional approach.
+    /// 
+    /// Features:
+    /// - Reactive state with signals
+    /// - Derived state with memos
+    /// - Throttled user interactions
+    /// - Dynamic styling based on state
+    /// </summary>
+    public static Control AdvancedCounter(int initialCount = 0, int initialStep = 1)
     {
         // Create reactive state
         var (count, setCount) = CreateSignal(initialCount);
@@ -30,7 +45,7 @@ public static class FunctionalCounterExample
             Console.WriteLine($"Count: {count()}, Step: {step()}, Doubled: {doubledCount()}");
         });
         
-        // Create a command for handling increments
+        // Create a command for handling increments with rate limiting
         var incrementCommand = new ReactiveCommand<int>(increment => {
             setCount(count() + increment);
             setLastUpdateTime(DateTime.Now.ToString("HH:mm:ss.fff"));
@@ -39,7 +54,7 @@ public static class FunctionalCounterExample
         // Create a subject for throttling button clicks
         var clickSubject = new Subject<int>();
         
-        // Throttle clicks
+        // Throttle clicks to prevent rapid-fire clicking
         clickSubject
             .ThrottleFirst(TimeSpan.FromMilliseconds(500))
             .Subscribe(v => incrementCommand.Execute(v));
@@ -55,7 +70,7 @@ public static class FunctionalCounterExample
                     .Children(
                         // Header
                         new TextBlock()
-                            .Text("Functional Counter with Throttling")
+                            .Text("Advanced Functional Counter")
                             .FontSize(20)
                             .FontWeight(FontWeight.Bold)
                             .HorizontalAlignment(HorizontalAlignment.Center),
@@ -135,20 +150,39 @@ public static class FunctionalCounterExample
             );
     }
     
-    // Example of a simple functional component with props
-    public static Control CreateCounter(int initialValue = 0)
+    /// <summary>
+    /// A simple counter component with minimal features, focused on clarity.
+    /// 
+    /// Features:
+    /// - Basic increment/decrement functionality
+    /// - Simple reactive display
+    /// - Minimal UI for educational purposes
+    /// </summary>
+    public static Control SimpleCounter(int initialValue = 0)
     {
+        // Create a signal for the count state
         var (count, setCount) = CreateSignal(initialValue);
         
+        // Return a simple counter UI
         return new StackPanel()
             .Spacing(10)
             .HorizontalAlignment(HorizontalAlignment.Center)
             .Children(
+                // Header
+                new TextBlock()
+                    .Text("Simple Counter")
+                    .FontSize(18)
+                    .FontWeight(FontWeight.Bold)
+                    .HorizontalAlignment(HorizontalAlignment.Center),
+                
+                // Display the count value reactively
                 Component(() => new TextBlock()
                     .Text(() => $"Count: {count()}")
                     .FontSize(16)
                     .TextAlignment(TextAlignment.Center)
                 ),
+                
+                // Control buttons
                 new StackPanel()
                     .Orientation(Orientation.Horizontal)
                     .Spacing(10)
@@ -156,54 +190,89 @@ public static class FunctionalCounterExample
                     .Children(
                         new Button()
                             .Content("-")
+                            .MinWidth(80)
                             .OnClick(_ => setCount(count() - 1)),
                         new Button()
                             .Content("+")
+                            .MinWidth(80)
                             .OnClick(_ => setCount(count() + 1))
                     )
             );
     }
     
-    // Example of conditional rendering with Show.When
-    public static Control CreateShowExample()
+    /// <summary>
+    /// An example of conditional rendering using Show.When.
+    /// 
+    /// Features:
+    /// - Toggle visibility of content
+    /// - Alternate fallback content
+    /// - Reactive UI updates
+    /// </summary>
+    public static Control ConditionalRenderingExample()
     {
+        // Create a signal for visibility state
         var (isVisible, setIsVisible) = CreateSignal(true);
         
         return new StackPanel()
             .Spacing(15)
             .Children(
+                // Header
+                new TextBlock()
+                    .Text("Conditional Rendering")
+                    .FontSize(18)
+                    .FontWeight(FontWeight.Bold)
+                    .HorizontalAlignment(HorizontalAlignment.Center),
+                
+                // Toggle button
                 new Button()
                     .Content("Toggle Visibility")
                     .HorizontalAlignment(HorizontalAlignment.Center)
                     .OnClick(_ => setIsVisible(!isVisible())),
                 
+                // Conditional content using Show.When
                 Show.When(
                     isVisible,
                     () => new TextBlock()
-                        .Text("This text is visible!")
+                        .Text("This content is visible! 👁️")
                         .HorizontalAlignment(HorizontalAlignment.Center),
                     () => new TextBlock()
-                        .Text("This is the fallback text.")
+                        .Text("Content is hidden. Click toggle to show.")
                         .HorizontalAlignment(HorizontalAlignment.Center)
                         .Foreground(Brushes.Gray)
                 )
             );
     }
     
-    // Example of list rendering with For.Each
-    public static Control CreateListExample()
+    /// <summary>
+    /// An example of dynamic list rendering with For.Each.
+    /// 
+    /// Features:
+    /// - Add/remove items from a list
+    /// - Dynamic rendering of list items
+    /// - Input handling for new items
+    /// </summary>
+    public static Control DynamicListExample()
     {
+        // Create signals for the item list and new item input
         var (items, setItems) = CreateSignal(new[] { "Item 1", "Item 2", "Item 3" });
         var (newItem, setNewItem) = CreateSignal("New Item");
         
         return new StackPanel()
             .Spacing(15)
             .Children(
+                // Header
                 new TextBlock()
-                    .Text("List Example")
-                    .FontSize(16)
+                    .Text("Dynamic List Example")
+                    .FontSize(18)
                     .FontWeight(FontWeight.Bold)
                     .HorizontalAlignment(HorizontalAlignment.Center),
+                
+                // Description
+                new TextBlock()
+                    .Text("Add, remove, and manage items in a reactive list")
+                    .FontSize(14)
+                    .TextAlignment(TextAlignment.Center)
+                    .Margin(new Thickness(0, 0, 0, 10)),
                 
                 // Input for new item
                 new StackPanel()
@@ -223,8 +292,10 @@ public static class FunctionalCounterExample
                         new Button()
                             .Content("Add")
                             .OnClick(_ => {
-                                setItems(items().Append(newItem()).ToArray());
-                                setNewItem("");
+                                if (!string.IsNullOrWhiteSpace(newItem())) {
+                                    setItems(items().Append(newItem()).ToArray());
+                                    setNewItem("");
+                                }
                             })
                     ),
                 
@@ -232,6 +303,7 @@ public static class FunctionalCounterExample
                 Component(() => new StackPanel()
                     .Spacing(5)
                     .Children(
+                        // Use For.Each to dynamically render the list items
                         For.Each(
                             items(), 
                             item => new StackPanel()
@@ -243,11 +315,21 @@ public static class FunctionalCounterExample
                                         .Text(item)
                                         .VerticalAlignment(VerticalAlignment.Center),
                                     new Button()
-                                        .Content("X")
+                                        .Content("✕")
+                                        .Width(30)
+                                        .Height(30)
                                         .OnClick(_ => setItems(items().Where(i => i != item).ToArray()))
                                 )
                         )
                     )
+                ),
+                
+                // Counter display
+                Component(() => new TextBlock()
+                    .Text(() => $"Total Items: {items().Length}")
+                    .FontSize(14)
+                    .TextAlignment(TextAlignment.Center)
+                    .Margin(new Thickness(0, 10, 0, 0))
                 )
             );
     }
