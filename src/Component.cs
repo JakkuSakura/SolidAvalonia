@@ -85,7 +85,6 @@ public class Component : ViewBase, ISolid
 
     /// <summary>
     /// Creates a reactive control that wraps a non-reactive control factory.
-    /// Equivalent to CreateComponent but with a more intuitive name.
     /// </summary>
     /// <typeparam name="T">The type of control to create.</typeparam>
     /// <param name="factory">The function that creates the control.</param>
