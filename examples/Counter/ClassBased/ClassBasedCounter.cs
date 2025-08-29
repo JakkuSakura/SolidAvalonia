@@ -18,14 +18,6 @@ namespace Counter.ClassBased;
 /// </summary>
 public class ClassBasedCounter : Component
 {
-    /// <summary>
-    /// Creates a new instance of the class-based counter component.
-    /// Uses deferred initialization to set up initial state before Build is called.
-    /// </summary>
-    public ClassBasedCounter() : base(true)
-    {
-        Initialize();
-    }
 
     /// <summary>
     /// Creates a component that displays the current count and its doubled value

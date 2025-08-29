@@ -13,6 +13,8 @@ public class Component : ViewBase, ISolid
     private bool _isInitialized;
     private readonly Func<Control>? _factory;
 
+    #region Constructors
+
     /// <summary>
     /// Creates a new component that uses the abstract Build method.
     /// Use this constructor when inheriting from Component.
@@ -39,16 +41,9 @@ public class Component : ViewBase, ISolid
         Register();
     }
 
-    /// <summary>
-    /// Creates a typed Component instance using a factory function.
-    /// </summary>
-    /// <typeparam name="T">The type of control to create.</typeparam>
-    /// <param name="factory">The function that creates the control.</param>
-    /// <returns>A Component that wraps the control.</returns>
-    public static Component<T> Create<T>(Func<T> factory) where T : Control
-    {
-        return new Component<T>(factory);
-    }
+    #endregion
+
+    #region Lifecycle Methods
 
     /// <summary>
     /// Builds the component. Override this in derived classes.
@@ -60,6 +55,37 @@ public class Component : ViewBase, ISolid
         return _factory?.Invoke() ?? new Panel();
     }
 
+    // Create an effect to rebuild the component when dependencies change
+    private void Register()
+    {
+        IReactiveSystem.Instance.CreateEffect(() =>
+        {
+            if (!_isInitialized)
+            {
+                _isInitialized = true;
+                Initialize();
+            }
+            else
+            {
+                Reload();
+            }
+        });
+    }
+
+    #endregion
+
+    #region Factory Methods
+
+    /// <summary>
+    /// Creates a reactive control that wraps a non-reactive control factory.
+    /// </summary>
+    /// <typeparam name="T">The type of control to create.</typeparam>
+    /// <param name="factory">The function that creates the control.</param>
+    /// <returns>A reactive component that updates when its dependencies change.</returns>
+    public Component<T> Reactive<T>(Func<T> factory) where T : Control =>
+        new(factory);
+
+    #endregion
 
     #region Fine-grained Reactivity API
 
@@ -82,32 +108,6 @@ public class Component : ViewBase, ISolid
         IReactiveSystem.Instance.CreateEffect(effect);
 
     #endregion
-
-    /// <summary>
-    /// Creates a reactive control that wraps a non-reactive control factory.
-    /// </summary>
-    /// <typeparam name="T">The type of control to create.</typeparam>
-    /// <param name="factory">The function that creates the control.</param>
-    /// <returns>A reactive component that updates when its dependencies change.</returns>
-    public Component<T> Reactive<T>(Func<T> factory) where T : Control =>
-        new(factory);
-
-    // Create an effect to rebuild the component when dependencies change
-    private void Register()
-    {
-        IReactiveSystem.Instance.CreateEffect(() =>
-        {
-            if (!_isInitialized)
-            {
-                _isInitialized = true;
-                Initialize();
-            }
-            else
-            {
-                Reload();
-            }
-        });
-    }
 }
 
 /// <summary>
