@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using SolidAvalonia.ReactiveSystem;
 
 namespace SolidAvalonia;
 
@@ -16,7 +15,7 @@ public static class Solid
     /// <param name="initialValue">The initial value of the signal.</param>
     /// <returns>A tuple containing the getter and setter functions.</returns>
     public static (Func<T>, Action<T>) CreateSignal<T>(T initialValue) => 
-        IReactiveSystem.Instance.CreateSignal(initialValue);
+        ReactiveSystem.Instance.CreateSignal(initialValue);
 
     /// <summary>
     /// Creates a computed value that automatically updates when dependencies change.
@@ -25,14 +24,14 @@ public static class Solid
     /// <param name="computation">The function that computes the value.</param>
     /// <returns>A function that returns the computed value.</returns>
     public static Func<T> CreateMemo<T>(Func<T> computation) => 
-        IReactiveSystem.Instance.CreateMemo(computation);
+        ReactiveSystem.Instance.CreateMemo(computation);
 
     /// <summary>
     /// Creates an effect that runs when dependencies change.
     /// </summary>
     /// <param name="effect">The effect function to run.</param>
     public static void CreateEffect(Action effect) => 
-        IReactiveSystem.Instance.CreateEffect(effect);
+        ReactiveSystem.Instance.CreateEffect(effect);
         
     /// <summary>
     /// Registers a cleanup function to be called before the current effect re-runs
@@ -40,7 +39,7 @@ public static class Solid
     /// </summary>
     /// <param name="cleanup">The cleanup function to register.</param>
     public static void OnCleanup(Action cleanup) =>
-        IReactiveSystem.Instance.OnCleanup(cleanup);
+        ReactiveSystem.Instance.OnCleanup(cleanup);
 
     /// <summary>
     /// Creates a component that automatically updates when dependencies change.

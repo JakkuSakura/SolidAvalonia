@@ -1,5 +1,3 @@
-using SolidAvalonia.ReactiveSystem;
-
 namespace SolidAvalonia;
 
 /// <summary>

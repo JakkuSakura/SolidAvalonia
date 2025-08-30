@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Declarative;
-using SolidAvalonia.ReactiveSystem;
 
 namespace SolidAvalonia;
 
@@ -144,19 +143,19 @@ public class Component : ViewBase, ISolid, IDisposable
     /// Creates a reactive signal with getter and setter.
     /// </summary>
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue) =>
-        IReactiveSystem.Instance.CreateSignal(initialValue);
+        ReactiveSystem.Instance.CreateSignal(initialValue);
 
     /// <summary>
     /// Creates a computed value that automatically updates when dependencies change.
     /// </summary>
     public Func<T> CreateMemo<T>(Func<T> computation) =>
-        IReactiveSystem.Instance.CreateMemo(computation);
+        ReactiveSystem.Instance.CreateMemo(computation);
 
     /// <summary>
     /// Creates an effect that runs when dependencies change.
     /// </summary>
     public void CreateEffect(Action effect) =>
-        IReactiveSystem.Instance.CreateEffect(effect);
+        ReactiveSystem.Instance.CreateEffect(effect);
 
     /// <summary>
     /// Registers a cleanup function to be called when the component is disposed.

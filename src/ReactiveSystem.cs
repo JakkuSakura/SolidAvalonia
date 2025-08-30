@@ -1,21 +1,21 @@
 using Avalonia.Threading;
 
-namespace SolidAvalonia.ReactiveSystem;
+namespace SolidAvalonia;
 
 /// <summary>
 /// High-performance reactive system implementation with explicit dependency tracking
 /// </summary>
-internal class SolidReactiveSystem : IReactiveSystem
+internal class ReactiveSystem
 {
+    // Global singleton instance
+    public static readonly ReactiveSystem Instance = new();
+
     private readonly ComputationContext _context = new();
     private readonly Scheduler _scheduler = new();
     private readonly List<IDisposable> _disposables = new();
     private bool _disposed;
 
     // Private constructor to prevent external instantiation
-    internal SolidReactiveSystem()
-    {
-    }
 
 
     #region Core Types
@@ -684,7 +684,7 @@ internal class SolidReactiveSystem : IReactiveSystem
 
     private void ThrowIfDisposed()
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(SolidReactiveSystem));
+        if (_disposed) throw new ObjectDisposedException(nameof(ReactiveSystem));
     }
 
     #endregion
