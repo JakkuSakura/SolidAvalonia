@@ -18,7 +18,6 @@ namespace Counter.ClassBased;
 /// </summary>
 public class ClassBasedCounter : Component
 {
-
     /// <summary>
     /// Creates a component that displays the current count and its doubled value
     /// with reactive styling based on the count value.
@@ -100,18 +99,21 @@ public class ClassBasedCounter : Component
     /// </summary>
     private Component<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
     {
-        return Reactive(() =>
-            new TextBlock()
-                .Text(() =>
-                {
-                    var evenText = isEven() ? "Even" : "Odd";
-                    var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
-                    return $"{evenText} • {signText} • Throttled to 2 clicks/sec";
-                })
-                .FontSize(14)
-                .TextAlignment(TextAlignment.Center)
-                .Foreground(() => isPositive() ? Brushes.Green :
-                    count() == 0 ? Brushes.Blue : Brushes.Red)
+        return Reactive(c =>
+            {
+                c.OnCleanup(() => Console.WriteLine("StatusIndicator unmounted"));
+                return new TextBlock()
+                    .Text(() =>
+                    {
+                        var evenText = isEven() ? "Even" : "Odd";
+                        var signText = isPositive() ? "Positive" : count() == 0 ? "Zero" : "Negative";
+                        return $"{evenText} • {signText} • Throttled to 2 clicks/sec";
+                    })
+                    .FontSize(14)
+                    .TextAlignment(TextAlignment.Center)
+                    .Foreground(() => isPositive() ? Brushes.Green :
+                        count() == 0 ? Brushes.Blue : Brushes.Red);
+            }
         );
     }
 
@@ -153,7 +155,7 @@ public class ClassBasedCounter : Component
             setCount(count() + increment);
             setLastUpdateTime(DateTime.Now.ToString("HH:mm:ss.fff"));
         });
-        
+
         // Create a subject for throttling button clicks
         var clickSubject = new Subject<int>();
 
@@ -173,7 +175,7 @@ public class ClassBasedCounter : Component
                     .Children(
                         // Header
                         CreateHeader(),
-                        
+
                         // Main counter display
                         CreateCountDisplay(count, doubledCount, isPositive),
 

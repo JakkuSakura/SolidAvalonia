@@ -23,4 +23,11 @@ public interface IReactiveSystem
     /// Creates an effect that runs when dependencies change
     /// </summary>
     void CreateEffect(Action effect);
+    
+    /// <summary>
+    /// Registers a cleanup function to be called before the current effect re-runs
+    /// or when the component unmounts
+    /// </summary>
+    /// <param name="cleanup">The cleanup function to register</param>
+    void OnCleanup(Action cleanup);
 }

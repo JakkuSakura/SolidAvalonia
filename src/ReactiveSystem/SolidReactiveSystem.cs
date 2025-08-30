@@ -336,6 +336,8 @@ internal class SolidReactiveSystem : IReactiveSystem
     private class Effect : Computation
     {
         private readonly Action _effect;
+        private readonly List<Action> _cleanupActions = new();
+        private static readonly ThreadLocal<Effect> _currentEffect = new();
 
         public Effect(Action effect, ComputationContext context, Scheduler scheduler)
             : base(context, scheduler)
@@ -343,6 +345,53 @@ internal class SolidReactiveSystem : IReactiveSystem
             _effect = effect;
             // Effects start dirty and need to be scheduled
             IsDirty = true;
+        }
+
+        public void AddCleanup(Action cleanup)
+        {
+            if (cleanup == null) throw new ArgumentNullException(nameof(cleanup));
+            
+            lock (SyncRoot)
+            {
+                _cleanupActions.Add(cleanup);
+            }
+        }
+
+        private void RunCleanup()
+        {
+            List<Action> cleanupActions;
+            
+            lock (SyncRoot)
+            {
+                if (_cleanupActions.Count == 0) return;
+                cleanupActions = new List<Action>(_cleanupActions);
+            }
+
+            foreach (var cleanup in cleanupActions)
+            {
+                try
+                {
+                    // Run on UI thread if available
+                    if (Dispatcher.UIThread?.CheckAccess() == false)
+                    {
+                        Dispatcher.UIThread.Invoke(cleanup);
+                    }
+                    else
+                    {
+                        cleanup();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle cleanup errors
+                    Console.WriteLine($"Error in cleanup function: {ex}");
+                }
+            }
+            
+            lock (SyncRoot)
+            {
+                _cleanupActions.Clear();
+            }
         }
 
         public override void Execute()
@@ -357,26 +406,40 @@ internal class SolidReactiveSystem : IReactiveSystem
 
             try
             {
+                // Run cleanup functions before re-running the effect
+                if (HasRun)
+                {
+                    RunCleanup();
+                }
+                
                 // Clear old dependencies
                 ClearDependencies();
 
-                // Track this computation
+                // Track this computation and set as current effect
                 Context.Push(this);
+                var previousEffect = _currentEffect.Value;
+                _currentEffect.Value = this;
 
                 try
                 {
                     // Run on UI thread if available
                     if (Dispatcher.UIThread?.CheckAccess() == false)
                     {
-                        Dispatcher.UIThread.Invoke(() => _effect());
+                        Dispatcher.UIThread.Invoke(() => { _effect(); });
                     }
                     else
                     {
                         _effect();
                     }
+                    
+                    // Note: We can't capture return values from actions directly in C#
+                    // Instead, we rely on explicit OnCleanup calls inside effects
                 }
                 finally
                 {
+                    // Using the null-forgiving operator to suppress the warning,
+                    // since we're restoring the previous state
+                    _currentEffect.Value = previousEffect!;
                     Context.Pop();
                 }
 
@@ -406,6 +469,15 @@ internal class SolidReactiveSystem : IReactiveSystem
                 Scheduler.ScheduleFlush();
             }
         }
+        
+        public override void Dispose()
+        {
+            // Run cleanup when the effect is disposed (component unmounts)
+            RunCleanup();
+            base.Dispose();
+        }
+        
+        public static Effect? Current => _currentEffect.Value;
     }
 
     /// <summary>
@@ -550,6 +622,24 @@ internal class SolidReactiveSystem : IReactiveSystem
         // Schedule initial execution
         _scheduler.EnqueueComputation(effectNode);
         _scheduler.ScheduleFlush();
+    }
+    
+    /// <summary>
+    /// Registers a cleanup function to be called before the current effect re-runs
+    /// or when the component unmounts
+    /// </summary>
+    public void OnCleanup(Action cleanup)
+    {
+        ThrowIfDisposed();
+        if (cleanup == null) throw new ArgumentNullException(nameof(cleanup));
+        
+        var currentEffect = Effect.Current;
+        if (currentEffect == null)
+        {
+            throw new InvalidOperationException("OnCleanup must be called within an effect");
+        }
+        
+        currentEffect.AddCleanup(cleanup);
     }
 
     /// <summary>

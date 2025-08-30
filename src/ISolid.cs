@@ -29,4 +29,11 @@ public interface ISolid
     /// </summary>
     /// <param name="effect">The effect function to run.</param>
     void CreateEffect(Action effect);
+    
+    /// <summary>
+    /// Registers a cleanup function to be called before the current effect re-runs
+    /// or when the component unmounts.
+    /// </summary>
+    /// <param name="cleanup">The cleanup function to register.</param>
+    void OnCleanup(Action cleanup);
 }

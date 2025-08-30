@@ -33,6 +33,14 @@ public static class Solid
     /// <param name="effect">The effect function to run.</param>
     public static void CreateEffect(Action effect) => 
         IReactiveSystem.Instance.CreateEffect(effect);
+        
+    /// <summary>
+    /// Registers a cleanup function to be called before the current effect re-runs
+    /// or when the component unmounts.
+    /// </summary>
+    /// <param name="cleanup">The cleanup function to register.</param>
+    public static void OnCleanup(Action cleanup) =>
+        IReactiveSystem.Instance.OnCleanup(cleanup);
 
     /// <summary>
     /// Creates a component that automatically updates when dependencies change.
@@ -41,6 +49,16 @@ public static class Solid
     /// <param name="factory">The function that creates the control.</param>
     /// <returns>A component that updates when dependencies change.</returns>
     public static Component<T> Component<T>(Func<T> factory) where T : Control => 
+        new(factory);
+        
+    /// <summary>
+    /// Creates a component with a factory function that receives the component instance.
+    /// This allows for convenient access to the component for setup and cleanup.
+    /// </summary>
+    /// <typeparam name="T">The type of control to create.</typeparam>
+    /// <param name="factory">The function that receives the component and creates the control.</param>
+    /// <returns>A component that updates when dependencies change.</returns>
+    public static Component<T> Component<T>(Func<Component, T> factory) where T : Control => 
         new(factory);
     
     
@@ -133,5 +151,13 @@ public static class Solid
         /// <param name="effect">The effect function to run.</param>
         public static void Create(Action effect) => 
             CreateEffect(effect);
+            
+        /// <summary>
+        /// Registers a cleanup function to be called before the current effect re-runs
+        /// or when the component unmounts.
+        /// </summary>
+        /// <param name="cleanup">The cleanup function to register.</param>
+        public static void OnCleanup(Action cleanup) =>
+            Solid.OnCleanup(cleanup);
     }
 }
