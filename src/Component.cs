@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Declarative;
 
@@ -7,11 +8,12 @@ namespace SolidAvalonia;
 /// Base class for reactive components that can be both inherited from or used functionally.
 /// Provides fine-grained reactivity for building reactive UI components.
 /// </summary>
-public class Component : ViewBase, ISolid, IDisposable
+public class Component : ViewBase, ISolid, IDisposable, ReactiveSystem.ICleanupOwner
 {
     private bool _isInitialized;
-    private readonly Func<Component, Control>? _factory;
+    private readonly Func<Control>? _factory;
     private readonly List<Action> _cleanupCallbacks = new();
+    private bool _isOwnerActive = false;
 
     #region Constructors
 
@@ -33,18 +35,7 @@ public class Component : ViewBase, ISolid, IDisposable
     /// Use this constructor for functional components.
     /// </summary>
     /// <param name="factory">The function that creates the control.</param>
-    protected Component(Func<Control> factory) : this(_ => factory())
-    {
-    }
-
-    // TODO: new ctor
-
-    /// <summary>
-    /// Creates a new component with a factory function that receives the component instance.
-    /// This allows for convenient access to the component for setup and cleanup.
-    /// </summary>
-    /// <param name="factory">The function that receives the component and creates the control.</param>
-    protected Component(Func<Component, Control> factory) : base(true)
+    protected Component(Func<Control> factory) : base(true)
     {
         _factory = factory;
 
@@ -63,12 +54,13 @@ public class Component : ViewBase, ISolid, IDisposable
     /// <returns>The built control.</returns>
     protected override object Build()
     {
-        return _factory?.Invoke(this) ?? new Panel();
+        return _factory?.Invoke() ?? new Panel();
     }
 
     // Create an effect to rebuild the component when dependencies change
     private void Register()
     {
+        return;
         Solid.CreateEffect(() =>
         {
             if (!_isInitialized)
@@ -81,6 +73,26 @@ public class Component : ViewBase, ISolid, IDisposable
                 Reload();
             }
         });
+    }
+    
+    protected override void OnInitialized()
+    {
+        // Push this component as the current owner before initialization
+        ReactiveSystem.Instance.PushOwner(this);
+        _isOwnerActive = true;
+        base.OnInitialized();
+    }
+    
+    protected override void OnAfterInitialized()
+    {
+        base.OnAfterInitialized();
+        
+        // Pop this component as the current owner after initialization
+        if (_isOwnerActive)
+        {
+            ReactiveSystem.Instance.PopOwner();
+            _isOwnerActive = false;
+        }
     }
 
     /// <summary>
@@ -106,6 +118,12 @@ public class Component : ViewBase, ISolid, IDisposable
         }
     }
 
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        RunCleanup();
+        base.OnDetachedFromVisualTree(e);
+    }
+
     public void Dispose()
     {
         // Run cleanup callbacks when the component is disposed
@@ -126,14 +144,6 @@ public class Component : ViewBase, ISolid, IDisposable
     public Component<T> Reactive<T>(Func<T> factory) where T : Control =>
         new(factory);
 
-    /// <summary>
-    /// Creates a reactive control with a factory that receives the component instance.
-    /// </summary>
-    /// <typeparam name="T">The type of control to create.</typeparam>
-    /// <param name="factory">The function that receives the component and creates the control.</param>
-    /// <returns>A reactive component that updates when its dependencies change.</returns>
-    public Component<T> Reactive<T>(Func<Component, T> factory) where T : Control =>
-        new(factory);
 
     #endregion
 
@@ -161,12 +171,27 @@ public class Component : ViewBase, ISolid, IDisposable
     /// Registers a cleanup function to be called when the component is disposed.
     /// </summary>
     /// <param name="cleanup">The cleanup function to register.</param>
-    public void OnCleanup(Action cleanup)
+    /// <summary>
+    /// Implements ICleanupOwner.AddCleanup to add cleanup actions
+    /// </summary>
+    void ReactiveSystem.ICleanupOwner.AddCleanup(Action cleanup)
     {
         if (cleanup == null)
             throw new ArgumentNullException(nameof(cleanup));
 
         _cleanupCallbacks.Add(cleanup);
+    }
+    
+    /// <summary>
+    /// Registers a cleanup function to be called when the component is disposed.
+    /// </summary>
+    public void OnCleanup(Action cleanup)
+    {
+        if (cleanup == null)
+            throw new ArgumentNullException(nameof(cleanup));
+
+        // Add to the appropriate owner (this or current effect)
+        ReactiveSystem.Instance.OnCleanup(cleanup);
     }
 
     #endregion
@@ -178,6 +203,7 @@ public class Component : ViewBase, ISolid, IDisposable
 /// <typeparam name="T">The type of control this component wraps.</typeparam>
 public class Component<T> : Component where T : Control
 {
-    public Component(Func<T> factory): base(factory) {}
-    public Component(Func<Component, T> factory) : base(factory) {}
+    public Component(Func<T> factory) : base(factory)
+    {
+    }
 }

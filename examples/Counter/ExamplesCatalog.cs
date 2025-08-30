@@ -95,6 +95,22 @@ public class ExamplesCatalog : ContentControl
             Content = CounterExamples.DynamicListExample(),
             Padding = new Thickness(10)
         });
+        
+        // Effect Cleanup Example - Wrap in a Component for proper lifecycle management
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Effect Cleanup",
+            Content = CleanupTestExample.EffectCleanupExample(),
+            Padding = new Thickness(10)
+        });
+        
+        // Nested Components Cleanup Example - Wrap in a Component for proper lifecycle management
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Nested Cleanup",
+            Content = CleanupTestExample.NestedComponentsExample(),
+            Padding = new Thickness(10)
+        });
 
         return tabControl;
     }

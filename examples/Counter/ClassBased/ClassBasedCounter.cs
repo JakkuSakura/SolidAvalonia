@@ -99,9 +99,9 @@ public class ClassBasedCounter : Component
     /// </summary>
     private Component<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
     {
-        return Reactive(c =>
+        return new Component<TextBlock>(() =>
             {
-                c.OnCleanup(() => Console.WriteLine("StatusIndicator unmounted"));
+                OnCleanup(() => Console.WriteLine("StatusIndicator unmounted"));
                 return new TextBlock()
                     .Text(() =>
                     {
