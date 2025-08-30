@@ -11,8 +11,7 @@ namespace SolidAvalonia;
 public class Component : ViewBase, ISolid, IDisposable
 {
     private bool _isInitialized;
-    private readonly Func<Control>? _factorySimple;
-    private readonly Func<Component, Control>? _factoryWithComponent;
+    private readonly Func<Component, Control>? _factory;
     private readonly List<Action> _cleanupCallbacks = new();
 
     #region Constructors
@@ -24,8 +23,7 @@ public class Component : ViewBase, ISolid, IDisposable
     /// <param name="deferredLoading">Whether to defer loading until Initialize is called.</param>
     protected Component(bool deferredLoading = false) : base(deferredLoading)
     {
-        _factorySimple = null;
-        _factoryWithComponent = null;
+        _factory = null;
 
         // Register the effect to handle initialization and updates
         Register();
@@ -36,14 +34,11 @@ public class Component : ViewBase, ISolid, IDisposable
     /// Use this constructor for functional components.
     /// </summary>
     /// <param name="factory">The function that creates the control.</param>
-    protected Component(Func<Control> factory) : base(true)
+    protected Component(Func<Control> factory) : this(_ => factory())
     {
-        _factorySimple = factory;
-        _factoryWithComponent = null;
-
-        // Register the effect to handle initialization and updates
-        Register();
     }
+
+    // TODO: new ctor
 
     /// <summary>
     /// Creates a new component with a factory function that receives the component instance.
@@ -52,8 +47,7 @@ public class Component : ViewBase, ISolid, IDisposable
     /// <param name="factory">The function that receives the component and creates the control.</param>
     protected Component(Func<Component, Control> factory) : base(true)
     {
-        _factorySimple = null;
-        _factoryWithComponent = factory;
+        _factory = factory;
 
         // Register the effect to handle initialization and updates
         Register();
@@ -70,18 +64,13 @@ public class Component : ViewBase, ISolid, IDisposable
     /// <returns>The built control.</returns>
     protected override object Build()
     {
-        if (_factoryWithComponent != null)
-        {
-            return _factoryWithComponent.Invoke(this);
-        }
-
-        return _factorySimple?.Invoke() ?? new Panel();
+        return _factory?.Invoke(this) ?? new Panel();
     }
 
     // Create an effect to rebuild the component when dependencies change
     private void Register()
     {
-        IReactiveSystem.Instance.CreateEffect(() =>
+        Solid.CreateEffect(() =>
         {
             if (!_isInitialized)
             {
@@ -117,7 +106,6 @@ public class Component : ViewBase, ISolid, IDisposable
             }
         }
     }
-
 
     public void Dispose()
     {
@@ -191,50 +179,6 @@ public class Component : ViewBase, ISolid, IDisposable
 /// <typeparam name="T">The type of control this component wraps.</typeparam>
 public class Component<T> : Component where T : Control
 {
-    private readonly Func<T>? _factorySimple;
-    private readonly Func<Component, T>? _factoryWithComponent;
-
-    /// <summary>
-    /// Creates a new component that wraps a control of type T.
-    /// </summary>
-    /// <param name="factory">The function that creates the control.</param>
-    public Component(Func<T> factory) : base(factory)
-    {
-        _factorySimple = factory;
-        _factoryWithComponent = null;
-    }
-
-    /// <summary>
-    /// Creates a new component that wraps a control of type T with a function that receives the component.
-    /// </summary>
-    /// <param name="factory">The function that receives the component and creates the control.</param>
-    public Component(Func<Component, T> factory) : base(c => factory(c))
-    {
-        _factorySimple = null;
-        _factoryWithComponent = factory;
-    }
-
-    /// <summary>
-    /// Builds the component using the factory function.
-    /// </summary>
-    /// <returns>The built control.</returns>
-    protected override object Build()
-    {
-        if (_factoryWithComponent != null)
-        {
-            return _factoryWithComponent(this);
-        }
-
-        return _factorySimple!();
-    }
-
-    /// <summary>
-    /// Gets the underlying control factory.
-    /// </summary>
-    public Func<T>? FactorySimple => _factorySimple;
-
-    /// <summary>
-    /// Gets the underlying component-aware control factory.
-    /// </summary>
-    public Func<Component, T>? FactoryWithComponent => _factoryWithComponent;
+    public Component(Func<T> factory): base(factory) {}
+    public Component(Func<Component, T> factory) : base(factory) {}
 }
