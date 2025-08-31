@@ -109,7 +109,7 @@ public static class Solid
             Func<Control>? fallback = null)
             where T : Control
         {
-            return new Component(() =>
+            return Reactive(() =>
                 condition()
                     ? factory()
                     : fallback?.Invoke() ?? new Panel());

@@ -8,7 +8,7 @@ namespace SolidAvalonia;
 /// Base class for reactive components that can be both inherited from or used functionally.
 /// Provides fine-grained reactivity for building reactive UI components.
 /// </summary>
-public class Component : ViewBase, ISolid, IReactiveOwner
+public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
 {
     internal Func<Control>? _factory;
     private readonly List<Action> _disposables = new();
@@ -116,11 +116,16 @@ public class Component : ViewBase, ISolid, IReactiveOwner
         }
     }
 
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+    }
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        Dispose();
         base.OnDetachedFromVisualTree(e);
     }
+
 
     public void Dispose()
     {
