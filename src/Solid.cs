@@ -10,6 +10,7 @@ public static class Solid
 {
     /// <summary>
     /// Creates a reactive signal with getter and setter.
+    /// Signal changes trigger updates to reactive UI.
     /// </summary>
     /// <typeparam name="T">The type of the signal value.</typeparam>
     /// <param name="initialValue">The initial value of the signal.</param>
@@ -17,6 +18,7 @@ public static class Solid
     public static (Func<T>, Action<T>) CreateSignal<T>(T initialValue) =>
         ReactiveSystem.Instance.CreateSignal(initialValue);
         
+    // CreateRef method removed - use CreateSignal instead
 
 
     /// <summary>
@@ -28,15 +30,6 @@ public static class Solid
     public static Func<T> CreateMemo<T>(Func<T> computation) =>
         ReactiveSystem.Instance.CreateMemo(computation);
 
-    /// <summary>
-    /// Creates a root-level computed value that is not owned by any component or effect.
-    /// Use this for application-level computed values that outlive components.
-    /// </summary>
-    /// <typeparam name="T">The type of the computed value.</typeparam>
-    /// <param name="computation">The function that computes the value.</param>
-    /// <returns>A function that returns the computed value.</returns>
-    public static Func<T> CreateRootMemo<T>(Func<T> computation) =>
-        ReactiveSystem.Instance.CreateRootMemo(computation);
 
     /// <summary>
     /// Creates an effect that runs when dependencies change.
@@ -44,7 +37,7 @@ public static class Solid
     /// <param name="effect">The effect function to run.</param>
     public static void CreateEffect(Action effect) =>
         ReactiveSystem.Instance.CreateEffect(effect);
-        
+
     /// <summary>
     /// Creates a root-level effect that is not owned by any component or other effect.
     /// Use this for application-level effects that outlive components.
@@ -70,7 +63,7 @@ public static class Solid
     /// <returns>A component that updates when dependencies change.</returns>
     public static Component Component<T>(Func<T> factory) where T : Control =>
         new(factory);
-    
+
     public static Reactive Reactive<T>(Func<T> factory) where T : Control =>
         new(factory);
 

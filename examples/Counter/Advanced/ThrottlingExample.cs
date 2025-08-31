@@ -1,10 +1,12 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia;
 using Avalonia.Markup.Declarative;
 using SolidAvalonia;
 using static SolidAvalonia.Solid;
 using R3;
+using System;
 
 namespace Counter.Advanced;
 
@@ -30,11 +32,28 @@ public static class ThrottlingExample
             var (regularCount, setRegularCount) = CreateSignal(0);
             var (throttledCount, setThrottledCount) = CreateSignal(0);
             var (debouncedCount, setDebouncedCount) = CreateSignal(0);
+            // Using a mutable string to store logs without reactive updates
+            var logTextValue = "";
+            // Create a signal for the log view
+            var (logText, setLogText) = CreateSignal("");
             
             // 2. Create signals for click timestamps
             var (regularTimestamp, setRegularTimestamp) = CreateSignal("");
             var (throttledTimestamp, setThrottledTimestamp) = CreateSignal("");
             var (debouncedTimestamp, setDebouncedTimestamp) = CreateSignal("");
+            
+            // Helper function to add timestamped log entries
+            void AddLog(string message)
+            {
+                // Update the mutable string
+                logTextValue = message + "\n" + logTextValue;
+                
+                // Update the signal outside the effect
+                // This prevents infinite loop since our modification to 
+                // the signal won't trigger the effect we're already in
+                setLogText(logTextValue);
+                Console.WriteLine(message);
+            }
             
             // 3. Create subjects for throttling
             var throttleSubject = new Subject<int>();
@@ -47,8 +66,10 @@ public static class ThrottlingExample
                 .ThrottleFirst(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ => 
                 {
+                    var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
                     setThrottledCount(throttledCount() + 1);
-                    setThrottledTimestamp(DateTime.Now.ToString("HH:mm:ss.fff"));
+                    setThrottledTimestamp(timestamp);
+                    AddLog($"[{timestamp}] Throttled event processed");
                 });
             
             // Debounce: Only lets the last event through after a period of inactivity
@@ -56,8 +77,10 @@ public static class ThrottlingExample
                 .Debounce(TimeSpan.FromMilliseconds(500))
                 .Subscribe(_ => 
                 {
+                    var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
                     setDebouncedCount(debouncedCount() + 1);
-                    setDebouncedTimestamp(DateTime.Now.ToString("HH:mm:ss.fff"));
+                    setDebouncedTimestamp(timestamp);
+                    AddLog($"[{timestamp}] Debounced event processed");
                 });
             
             // 5. Helper function for creating counter displays
@@ -126,18 +149,28 @@ public static class ThrottlingExample
                                 .OnClick(_ => 
                                 {
                                     setRegularCount(regularCount() + 1);
-                                    setRegularTimestamp(DateTime.Now.ToString("HH:mm:ss.fff"));
+                                    var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                                    setRegularTimestamp(timestamp);
+                                    AddLog($"[{timestamp}] Regular button clicked");
                                 }),
                             
                             new Button()
                                 .Content("Throttled")
                                 .Width(120)
-                                .OnClick(_ => throttleSubject.OnNext(1)),
+                                .OnClick(_ => 
+                                {
+                                    throttleSubject.OnNext(1);
+                                    AddLog($"[{DateTime.Now.ToString("HH:mm:ss.fff")}] Throttled button clicked");
+                                }),
                             
                             new Button()
                                 .Content("Debounced")
                                 .Width(120)
-                                .OnClick(_ => debounceSubject.OnNext(1))
+                                .OnClick(_ => 
+                                {
+                                    debounceSubject.OnNext(1);
+                                    AddLog($"[{DateTime.Now.ToString("HH:mm:ss.fff")}] Debounced button clicked");
+                                })
                         ),
                     
                     // Counter displays
@@ -175,7 +208,30 @@ public static class ThrottlingExample
                                     .Text("• Debounced: Waits until clicks stop for 500ms (last one wins)")
                                     .FontSize(14)
                             )
-                        )
+                        ),
+                    
+                    // Divider
+                    new Separator()
+                        .Height(1)
+                        .Margin(new Thickness(0, 10, 0, 10))
+                        .Background(new SolidColorBrush(Color.FromRgb(200, 200, 220))),
+                    
+                    // Log header
+                    new TextBlock()
+                        .Text("Event Log (newest at top)")
+                        .FontWeight(FontWeight.Bold)
+                        .Margin(new Thickness(0, 0, 0, 5)),
+                        
+                    // Log display
+                    Reactive(() => new TextBox()
+                        .Text(logText())
+                        .IsReadOnly(true)
+                        .AcceptsReturn(true)
+                        .FontFamily("Consolas, Menlo, monospace")
+                        .FontSize(12)
+                        .Height(200)
+                        .Width(450)
+                    )
                 );
         });
     }

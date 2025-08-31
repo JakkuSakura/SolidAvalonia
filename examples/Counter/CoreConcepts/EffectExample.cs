@@ -28,12 +28,24 @@ public static class EffectExample
         {
             // 1. Create signals for state
             var (count, setCount) = CreateSignal(0);
+            // Using a mutable string to store logs without reactive updates
+            var logTextValue = "";
+            // Create a signal for the log view
+            var (logText, setLogText) = CreateSignal("");
             
             // 2. Helper function to add timestamped log entries
             void AddLog(string message)
             {
                 var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
                 var entry = $"[{timestamp}] {message}\n";
+                
+                // Update the mutable string
+                logTextValue = entry + logTextValue;
+                
+                // Update the signal outside the effect
+                // This prevents infinite loop since our modification to 
+                // the signal won't trigger the effect we're already in
+                setLogText(logTextValue);
                 Console.WriteLine(entry);
             }
             
@@ -129,6 +141,7 @@ public static class EffectExample
                     
                     // Log display
                     Reactive(() => new TextBox()
+                        .Text(logText())
                         .IsReadOnly(true)
                         .AcceptsReturn(true)
                         .FontFamily("Consolas, Menlo, monospace")

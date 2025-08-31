@@ -11,114 +11,19 @@ internal class ReactiveSystem
     internal readonly ReactiveContext Context = new();
     internal readonly Scheduler Scheduler = new();
     private readonly List<IDisposable> _disposables = new();
-    private readonly RootOwner _rootOwner;
     private bool _disposed;
 
     // Private constructor to prevent external instantiation
     private ReactiveSystem()
     {
-        _rootOwner = new RootOwner(this);
-    }
-
-
-    /// <summary>
-    /// Root owner for reactive nodes that manages lifecycle of top-level reactive nodes
-    /// </summary>
-    private class RootOwner : IReactiveOwner
-    {
-        private readonly ReactiveSystem _system;
-        private readonly List<IDisposable> _disposables = new();
-        private readonly List<ReactiveNode> _ownedNodes = new();
-
-        public RootOwner(ReactiveSystem system)
-        {
-            _system = system;
-        }
-
-        public void AddCleanup(Action cleanup)
-        {
-            ArgumentNullException.ThrowIfNull(cleanup);
-            // Convert cleanup action to IDisposable
-            _disposables.Add(new ActionDisposable(cleanup));
-        }
-
-        public void AddOwnedNode(ReactiveNode node)
-        {
-            ArgumentNullException.ThrowIfNull(node);
-            _ownedNodes.Add(node);
-        }
-
-        public void RemoveOwnedNode(ReactiveNode node)
-        {
-            ArgumentNullException.ThrowIfNull(node);
-            _ownedNodes.Remove(node);
-        }
-
-        public void Dispose()
-        {
-            // Dispose all registered disposables
-            foreach (var disposable in _disposables.ToArray())
-            {
-                try
-                {
-                    disposable.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error disposing cleanup action: {ex}");
-                }
-            }
-
-            _disposables.Clear();
-
-            // Dispose owned nodes
-            foreach (var node in _ownedNodes.ToArray())
-            {
-                try
-                {
-                    node.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error disposing root-owned node: {ex}");
-                }
-            }
-
-            _ownedNodes.Clear();
-        }
-
-        // Cleanup method for backward compatibility
-        public void Cleanup() => Dispose();
-    }
-
-    /// <summary>
-    /// Simple disposable wrapper for an action
-    /// </summary>
-    private class ActionDisposable : IDisposable
-    {
-        private Action? _action;
-
-        public ActionDisposable(Action action)
-        {
-            _action = action;
-        }
-
-        public void Dispose()
-        {
-            var action = _action;
-            if (action != null)
-            {
-                _action = null;
-                action();
-            }
-        }
     }
 
 
     #region IReactiveSystem Implementation
 
     /// <summary>
-    /// Creates a reactive signal with getter and setter
+    /// Creates a reactive signal with getter and setter.
+    /// Signal changes trigger updates to reactive UI.
     /// </summary>
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
@@ -145,6 +50,8 @@ internal class ReactiveSystem
     }
 
 
+    // CreateRef method removed - use CreateSignal instead
+    
     /// <summary>
     /// Creates a computed value that automatically updates when dependencies change
     /// </summary>
@@ -172,18 +79,6 @@ internal class ReactiveSystem
         return memo.Get;
     }
 
-    /// <summary>
-    /// Creates a root-level computed value that automatically updates when dependencies change
-    /// </summary>
-    public Func<T> CreateRootMemo<T>(Func<T> computation)
-    {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(computation);
-
-        var memo = new Memo<T>(computation, Context, Scheduler);
-        memo.SetOwner(_rootOwner);
-        return memo.Get;
-    }
 
     /// <summary>
     /// Creates an effect that runs when dependencies change
@@ -212,8 +107,10 @@ internal class ReactiveSystem
         Scheduler.ScheduleFlush();
     }
 
+
     /// <summary>
-    /// Creates a root-level effect that runs when dependencies change
+    /// Creates a root-level effect that is not owned by any component or other effect.
+    /// Use this for application-level effects that outlive components.
     /// </summary>
     public void CreateRootEffect(Action effect)
     {
@@ -221,13 +118,14 @@ internal class ReactiveSystem
         ArgumentNullException.ThrowIfNull(effect);
 
         var effectNode = new Effect(effect, Context, Scheduler);
-        effectNode.SetOwner(_rootOwner);
+        
+        // Root effects have no owner
+        // They will live until the reactive system is disposed
 
         // Schedule initial execution
         Scheduler.EnqueueComputation(effectNode);
         Scheduler.ScheduleFlush();
     }
-
 
     /// <summary>
     /// Registers a cleanup function to be called before the current effect re-runs

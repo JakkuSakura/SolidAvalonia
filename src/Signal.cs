@@ -39,14 +39,29 @@ public class Signal<T> : ReactiveNode
             _value = value;
             Version++;
 
+            // Check if we have any observers to notify
             if (_observers.Count > 0)
             {
-                observersToNotify = new HashSet<Computation>(_observers);
+                var currentComputation = ReactiveSystem.Instance.Context.CurrentComputation;
+                
+                // Filter out the current computation to avoid redundant updates
+                // Only necessary if we're inside a computation that depends on this signal
+                if (currentComputation != null && _observers.Contains(currentComputation))
+                {
+                    // Create a new HashSet excluding the current computation
+                    observersToNotify = new HashSet<Computation>(_observers);
+                    observersToNotify.Remove(currentComputation);
+                }
+                else
+                {
+                    // No need to filter, notify all observers
+                    observersToNotify = new HashSet<Computation>(_observers);
+                }
             }
         }
 
         // Notify observers outside the lock to prevent deadlocks
-        if (observersToNotify != null)
+        if (observersToNotify != null && observersToNotify.Count > 0)
         {
             foreach (var observer in observersToNotify)
             {
