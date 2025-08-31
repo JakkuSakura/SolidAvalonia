@@ -4,6 +4,7 @@ using Avalonia.Media;
 using SolidAvalonia;
 using Avalonia.Markup.Declarative;
 using Avalonia.Interactivity;
+using static SolidAvalonia.Solid;
 
 namespace Counter.Common;
 
@@ -41,12 +42,12 @@ public static class SharedComponents
     /// <param name="fontSize">Optional font size (default: 20).</param>
     /// <param name="horizontalAlignment">Optional horizontal alignment (default: Center).</param>
     /// <returns>A TextBlock control with reactive text.</returns>
-    public static Component<TextBlock> ReactiveHeader(
+    public static Component ReactiveHeader(
         Func<string> getText,
         double fontSize = 20,
         HorizontalAlignment horizontalAlignment = HorizontalAlignment.Center)
     {
-        return new Component<TextBlock>(() => new TextBlock()
+        return Reactive(() => new TextBlock()
             .Text(getText)
             .FontSize(fontSize)
             .FontWeight(FontWeight.Bold)
@@ -78,12 +79,12 @@ public static class SharedComponents
     /// <param name="fontSize">Optional font size (default: 14).</param>
     /// <param name="textAlignment">Optional text alignment (default: Left).</param>
     /// <returns>A TextBlock control with reactive text.</returns>
-    public static Component<TextBlock> ReactiveLabel(
+    public static Component ReactiveLabel(
         Func<string> getText,
         double fontSize = 14,
         TextAlignment textAlignment = TextAlignment.Left)
     {
-        return new Component<TextBlock>(() => new TextBlock()
+        return Reactive(() => new TextBlock()
             .Text(getText)
             .FontSize(fontSize)
             .TextAlignment(textAlignment));
@@ -115,12 +116,12 @@ public static class SharedComponents
     /// <param name="getIsSuccess">Function that determines if the status is successful.</param>
     /// <param name="fontSize">Optional font size (default: 14).</param>
     /// <returns>A TextBlock control with reactive text and color.</returns>
-    public static Component<TextBlock> ReactiveStatusText(
+    public static Component ReactiveStatusText(
         Func<string> getText,
         Func<bool> getIsSuccess,
         double fontSize = 14)
     {
-        return new Component<TextBlock>(() => new TextBlock()
+        return Reactive(() => new TextBlock()
             .Text(getText)
             .FontSize(fontSize)
             .Foreground(() => getIsSuccess() ? Brushes.Green : Brushes.Red)

@@ -16,7 +16,7 @@ public static class CleanupTestExample
     /// <summary>
     /// A component that demonstrates cleanup in effects with signal dependencies
     /// </summary>
-    public static Component<Border> EffectCleanupExample()
+    public static Component EffectCleanupExample()
     {
         return Component(() =>
         {
@@ -126,20 +126,19 @@ public static class CleanupTestExample
     /// <summary>
     /// A component that demonstrates nested components with cleanup
     /// </summary>
-    public static Component<Border> NestedComponentsExample()
+    public static Component NestedComponentsExample()
     {
         return Component(() =>
         {
             // Create signals for controlling visibility
             var (showChild, setShowChild) = CreateSignal(true);
-            var (logText, setLogText) = CreateSignal("");
+
 
             // Add log entry with timestamp
             void AddLog(string message)
             {
                 var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
                 var entry = $"[{timestamp}] {message}\n";
-                setLogText(entry + logText());
                 Console.WriteLine(entry);
             }
 
@@ -190,61 +189,44 @@ public static class CleanupTestExample
             });
 
             // Return the parent component
-            return new Border()
-                .CornerRadius(10)
-                .Padding(20)
-                .MaxWidth(500)
-                .Background(new SolidColorBrush(Color.FromRgb(240, 240, 250)))
-                .Child(
-                    new StackPanel()
-                        .Spacing(15)
-                        .Children(
-                            // Header
-                            new TextBlock()
-                                .Text("Nested Components Cleanup Example")
-                                .FontSize(20)
-                                .FontWeight(FontWeight.Bold)
-                                .HorizontalAlignment(HorizontalAlignment.Center),
+            return new StackPanel()
+                .Spacing(15)
+                .Children(
+                    // Header
+                    new TextBlock()
+                        .Text("Nested Components Cleanup Example")
+                        .FontSize(20)
+                        .FontWeight(FontWeight.Bold)
+                        .HorizontalAlignment(HorizontalAlignment.Center),
 
-                            // Toggle button
-                            new Button()
-                                .Content(() => showChild() ? "Unmount Child Component" : "Mount Child Component")
-                                .HorizontalAlignment(HorizontalAlignment.Center)
-                                .OnClick(_ =>
-                                {
-                                    setShowChild(!showChild());
-                                    AddLog($"Child component visibility toggled to {showChild()}");
-                                }),
+                    // Toggle button
+                    new Button()
+                        .Content(() => showChild() ? "Unmount Child Component" : "Mount Child Component")
+                        .HorizontalAlignment(HorizontalAlignment.Center)
+                        .OnClick(_ =>
+                        {
+                            setShowChild(!showChild());
+                            AddLog($"Child component visibility toggled to {showChild()}");
+                        }),
 
-                            // Conditional rendering of child component
-                            // Use the memoized component to prevent recreation on each render
-                            Show.When(
-                                showChild,
-                                () => childComponent
-                            ),
+                    // Conditional rendering of child component
+                    // Use the memoized component to prevent recreation on each render
+                    Show.When(
+                        showChild,
+                        () => childComponent
+                    ),
 
-                            // Divider
-                            new Separator()
-                                .Height(1)
-                                .Margin(new Thickness(0, 10, 0, 10))
-                                .Background(new SolidColorBrush(Color.FromRgb(200, 200, 220))),
+                    // Divider
+                    new Separator()
+                        .Height(1)
+                        .Margin(new Thickness(0, 10, 0, 10))
+                        .Background(new SolidColorBrush(Color.FromRgb(200, 200, 220))),
 
-                            // Log header
-                            new TextBlock()
-                                .Text("Log (newest at top)")
-                                .FontWeight(FontWeight.Bold)
-                                .Margin(new Thickness(0, 0, 0, 5)),
-
-                            // Log entries
-                            Component(() => new TextBox()
-                                .Text(logText())
-                                .IsReadOnly(true)
-                                .AcceptsReturn(true)
-                                .FontFamily("Consolas, Menlo, monospace")
-                                .FontSize(12)
-                                .MaxHeight(200)
-                            )
-                        )
+                    // Log header
+                    new TextBlock()
+                        .Text("Log (newest at top)")
+                        .FontWeight(FontWeight.Bold)
+                        .Margin(new Thickness(0, 0, 0, 5))
                 );
         });
     }

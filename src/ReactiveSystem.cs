@@ -10,197 +10,167 @@ internal class ReactiveSystem
     // Global singleton instance
     public static readonly ReactiveSystem Instance = new();
 
-    private readonly ComputationContext _context = new();
-    private readonly OwnerContext _ownerContext = new();
+    internal readonly ReactiveContext _context = new();
     internal Component? CurrentComponent = null;
-    private readonly Scheduler _scheduler = new();
+    internal readonly Scheduler _scheduler = new();
     private readonly List<IDisposable> _disposables = new();
+    private readonly RootOwner _rootOwner;
     private bool _disposed;
 
     // Private constructor to prevent external instantiation
+    private ReactiveSystem()
+    {
+        _rootOwner = new RootOwner(this);
+    }
 
+
+    /// <summary>
+    /// Root owner for reactive nodes that manages lifecycle of top-level reactive nodes
+    /// </summary>
+    private class RootOwner : IReactiveOwner, IDisposable
+    {
+        private readonly ReactiveSystem _system;
+        private readonly List<IDisposable> _disposables = new();
+        private readonly List<ReactiveNode> _ownedNodes = new();
+
+        public RootOwner(ReactiveSystem system)
+        {
+            _system = system;
+        }
+
+        public void AddCleanup(Action cleanup)
+        {
+            if (cleanup == null) throw new ArgumentNullException(nameof(cleanup));
+            // Convert cleanup action to IDisposable
+            _disposables.Add(new ActionDisposable(cleanup));
+        }
+
+        public void AddOwnedNode(ReactiveNode node)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            _ownedNodes.Add(node);
+        }
+
+        public void RemoveOwnedNode(ReactiveNode node)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+            _ownedNodes.Remove(node);
+        }
+
+        public void Dispose()
+        {
+            // Dispose all registered disposables
+            foreach (var disposable in _disposables.ToArray())
+            {
+                try
+                {
+                    disposable.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error disposing cleanup action: {ex}");
+                }
+            }
+
+            _disposables.Clear();
+
+            // Dispose owned nodes
+            foreach (var node in _ownedNodes.ToArray())
+            {
+                try
+                {
+                    node.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error disposing root-owned node: {ex}");
+                }
+            }
+
+            _ownedNodes.Clear();
+        }
+
+        // Cleanup method for backward compatibility
+        public void Cleanup() => Dispose();
+    }
+
+    /// <summary>
+    /// Simple disposable wrapper for an action
+    /// </summary>
+    private class ActionDisposable : IDisposable
+    {
+        private Action? _action;
+
+        public ActionDisposable(Action action)
+        {
+            _action = action;
+        }
+
+        public void Dispose()
+        {
+            var action = _action;
+            if (action != null)
+            {
+                _action = null;
+                action();
+            }
+        }
+    }
 
     #region Core Types
 
-    /// <summary>
-    /// Tracks the owner stack for cleanup registration
-    /// </summary>
-    private class OwnerContext : IDisposable
-    {
-        private readonly Stack<ICleanupOwner> _ownerStack = new();
-
-        public ICleanupOwner? Current => _ownerStack.Count > 0 ? _ownerStack.Peek() : null;
-
-        public void Push(ICleanupOwner owner) => _ownerStack.Push(owner);
-
-        public void Pop()
-        {
-            if (_ownerStack.Count > 0) _ownerStack.Pop();
-        }
-
-        public void Clear() => _ownerStack.Clear();
-        public void Dispose() => Clear();
-    }
-
-    /// <summary>
-    /// Interface for objects that can own cleanup callbacks
-    /// </summary>
-    internal interface ICleanupOwner
-    {
-        void AddCleanup(Action cleanup);
-    }
-
-    /// <summary>
-    /// Tracks the currently executing computation for dependency registration
-    /// </summary>
-    private class ComputationContext : IDisposable
-    {
-        private readonly Stack<Computation> _computationStack = new();
-
-        public Computation? Current => _computationStack.Count > 0 ? _computationStack.Peek() : null;
-        public bool IsBatching;
-
-        public void Push(Computation computation) => _computationStack.Push(computation);
-
-        public void Pop()
-        {
-            if (_computationStack.Count > 0) _computationStack.Pop();
-        }
-
-        public void Clear() => _computationStack.Clear();
-        public void Dispose() => Clear();
-    }
-    /// <summary>
-    /// Base class for all reactive nodes in the dependency graph
-    /// </summary>
-    private abstract class ReactiveNode : IDisposable
-    {
-        protected readonly object SyncRoot = new();
-        public bool Disposed;
-        public long Version { get; protected set; }
-        public abstract void Dispose();
-    }
-
-    /// <summary>
-    /// Represents a reactive signal that can be read and written
-    /// </summary>
-    private class Signal<T> : ReactiveNode
-    {
-        private T _value;
-        private readonly HashSet<Computation> _observers = new();
-        private readonly ComputationContext _context;
-        private readonly Scheduler _scheduler;
-
-        public Signal(T initialValue, ComputationContext context, Scheduler scheduler)
-        {
-            _value = initialValue;
-            _context = context;
-            _scheduler = scheduler;
-            Version = 0;
-        }
-
-        public T Get()
-        {
-            lock (SyncRoot)
-            {
-                // Register dependency if we're inside a computation
-                var current = _context.Current;
-                if (current != null && !current.Disposed)
-                {
-                    _observers.Add(current);
-                    current.AddDependency(this, Version);
-                }
-
-                return _value;
-            }
-        }
-
-        public void Set(T value)
-        {
-            HashSet<Computation>? observersToNotify = null;
-
-            lock (SyncRoot)
-            {
-                if (EqualityComparer<T>.Default.Equals(_value, value))
-                    return;
-
-                _value = value;
-                Version++;
-
-                if (_observers.Count > 0)
-                {
-                    observersToNotify = new HashSet<Computation>(_observers);
-                }
-            }
-
-            // Notify observers outside the lock to prevent deadlocks
-            if (observersToNotify != null)
-            {
-                foreach (var observer in observersToNotify)
-                {
-                    observer.Invalidate();
-                }
-
-                // Only schedule flush if not in a batch
-                if (!_context.IsBatching)
-                {
-                    _scheduler.ScheduleFlush();
-                }
-            }
-        }
-
-        public void RemoveObserver(Computation computation)
-        {
-            lock (SyncRoot)
-            {
-                _observers.Remove(computation);
-            }
-        }
-
-        public override void Dispose()
-        {
-            lock (SyncRoot)
-            {
-                if (Disposed) return;
-                Disposed = true;
-                _observers.Clear();
-            }
-        }
-    }
 
     /// <summary>
     /// Base class for computations (memos and effects)
     /// </summary>
-    private abstract class Computation : ReactiveNode, ICleanupOwner
+    internal abstract class Computation : ReactiveNode, IReactiveOwner
     {
-        protected readonly ComputationContext Context;
+        protected readonly ReactiveContext Context;
         protected readonly Scheduler Scheduler;
         protected readonly Dictionary<ReactiveNode, long> Dependencies = new();
         protected readonly List<Action> _cleanupActions = new();
+        protected readonly List<ReactiveNode> _ownedNodes = new();
         protected bool IsDirty = true;
         protected bool IsRunning;
         protected bool HasRun;
 
-        protected Computation(ComputationContext context, Scheduler scheduler)
+        protected Computation(ReactiveContext context, Scheduler scheduler)
         {
             Context = context;
             Scheduler = scheduler;
         }
-        
+
+        public void AddOwnedNode(ReactiveNode node)
+        {
+            lock (SyncRoot)
+            {
+                if (Disposed) return;
+                _ownedNodes.Add(node);
+            }
+        }
+
+        public void RemoveOwnedNode(ReactiveNode node)
+        {
+            lock (SyncRoot)
+            {
+                _ownedNodes.Remove(node);
+            }
+        }
+
         public virtual void AddCleanup(Action cleanup)
         {
             if (cleanup == null) throw new ArgumentNullException(nameof(cleanup));
-            
+
             lock (SyncRoot)
             {
                 _cleanupActions.Add(cleanup);
             }
         }
-        
+
         protected void RunCleanup()
         {
             List<Action> cleanupActions;
-            
+
             lock (SyncRoot)
             {
                 if (_cleanupActions.Count == 0) return;
@@ -278,10 +248,23 @@ internal class ReactiveSystem
             {
                 if (Disposed) return;
                 Disposed = true;
-                
+
                 // Run cleanup when computation is disposed
                 RunCleanup();
                 ClearDependencies();
+
+                // Dispose all owned nodes
+                var ownedNodesCopy = new List<ReactiveNode>(_ownedNodes);
+                _ownedNodes.Clear();
+
+                // Dispose owned nodes outside the lock
+                foreach (var node in ownedNodesCopy)
+                {
+                    node.Dispose();
+                }
+
+                // Remove from owner
+                SetOwner(null);
             }
         }
     }
@@ -296,7 +279,7 @@ internal class ReactiveSystem
         private bool _hasValue;
         private readonly HashSet<Computation> _observers = new();
 
-        public Memo(Func<T> computation, ComputationContext context, Scheduler scheduler)
+        public Memo(Func<T> computation, ReactiveContext context, Scheduler scheduler)
             : base(context, scheduler)
         {
             _computation = computation;
@@ -308,7 +291,7 @@ internal class ReactiveSystem
             lock (SyncRoot)
             {
                 // Register as dependency if we're in a computation
-                var current = Context.Current;
+                var current = Context.CurrentComputation;
                 if (current != null && !current.Disposed)
                 {
                     _observers.Add(current);
@@ -414,17 +397,12 @@ internal class ReactiveSystem
         private readonly Action _effect;
         private static readonly ThreadLocal<Effect> _currentEffect = new();
 
-        public Effect(Action effect, ComputationContext context, Scheduler scheduler)
+        public Effect(Action effect, ReactiveContext context, Scheduler scheduler)
             : base(context, scheduler)
         {
             _effect = effect;
             // Effects start dirty and need to be scheduled
             IsDirty = true;
-        }
-
-        public override void AddCleanup(Action cleanup)
-        {
-            base.AddCleanup(cleanup);
         }
 
 
@@ -445,7 +423,7 @@ internal class ReactiveSystem
                 {
                     RunCleanup();
                 }
-                
+
                 // Clear old dependencies
                 ClearDependencies();
 
@@ -453,9 +431,9 @@ internal class ReactiveSystem
                 Context.Push(this);
                 var previousEffect = _currentEffect.Value;
                 _currentEffect.Value = this;
-                
+
                 // Push this effect as current owner for cleanup registration
-                Instance._ownerContext.Push(this);
+                Instance._context.Push(this);
 
                 try
                 {
@@ -468,7 +446,7 @@ internal class ReactiveSystem
                     {
                         _effect();
                     }
-                    
+
                     // Note: We can't capture return values from actions directly in C#
                     // Instead, we rely on explicit OnCleanup calls inside effects
                 }
@@ -478,9 +456,9 @@ internal class ReactiveSystem
                     // since we're restoring the previous state
                     _currentEffect.Value = previousEffect!;
                     Context.Pop();
-                    
+
                     // Pop this effect as current owner
-                    Instance._ownerContext.Pop();
+                    Instance._context.Pop<IReactiveOwner>();
                 }
 
                 lock (SyncRoot)
@@ -509,21 +487,21 @@ internal class ReactiveSystem
                 Scheduler.ScheduleFlush();
             }
         }
-        
+
         public override void Dispose()
         {
             // Run cleanup when the effect is disposed (component unmounts)
             RunCleanup();
             base.Dispose();
         }
-        
+
         public static Effect? Current => _currentEffect.Value;
     }
 
     /// <summary>
     /// Schedules and batches computation updates
     /// </summary>
-    private class Scheduler
+    internal class Scheduler
     {
         private readonly Queue<Computation> _pendingComputations = new();
         private readonly HashSet<Computation> _enqueuedComputations = new();
@@ -630,10 +608,25 @@ internal class ReactiveSystem
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
         ThrowIfDisposed();
-        var signal = new Signal<T>(initialValue, _context, _scheduler);
-        _disposables.Add(signal);
+        var signal = new Signal<T>(initialValue);
+
+        // Set owner to current reactive owner if available
+        var currentOwner = _context.CurrentOwner;
+        if (currentOwner != null)
+        {
+            signal.SetOwner(currentOwner);
+        }
+        else
+        {
+            // Throw exception if no owner is available
+            throw new InvalidOperationException(
+                "Cannot create a signal without an owner. Make sure signals are created within a reactive context (component or effect).");
+        }
+
         return (signal.Get, signal.Set);
     }
+    
+
 
     /// <summary>
     /// Creates a computed value that automatically updates when dependencies change
@@ -644,7 +637,33 @@ internal class ReactiveSystem
         if (computation == null) throw new ArgumentNullException(nameof(computation));
 
         var memo = new Memo<T>(computation, _context, _scheduler);
-        _disposables.Add(memo);
+
+        // Set owner to current reactive owner if available
+        var currentOwner = _context.CurrentOwner;
+        if (currentOwner != null)
+        {
+            memo.SetOwner(currentOwner);
+        }
+        else
+        {
+            // Throw exception if no owner is available
+            throw new InvalidOperationException(
+                "Cannot create a memo without an owner. Make sure memos are created within a reactive context (component or effect)");
+        }
+
+        return memo.Get;
+    }
+
+    /// <summary>
+    /// Creates a root-level computed value that automatically updates when dependencies change
+    /// </summary>
+    public Func<T> CreateRootMemo<T>(Func<T> computation)
+    {
+        ThrowIfDisposed();
+        if (computation == null) throw new ArgumentNullException(nameof(computation));
+
+        var memo = new Memo<T>(computation, _context, _scheduler);
+        memo.SetOwner(_rootOwner);
         return memo.Get;
     }
 
@@ -657,13 +676,42 @@ internal class ReactiveSystem
         if (effect == null) throw new ArgumentNullException(nameof(effect));
 
         var effectNode = new Effect(effect, _context, _scheduler);
-        _disposables.Add(effectNode);
+
+        // Set owner to current reactive owner if available
+        var currentOwner = _context.CurrentOwner;
+        if (currentOwner != null)
+        {
+            effectNode.SetOwner(currentOwner);
+        }
+        else
+        {
+            // Throw exception if no owner is available
+            throw new InvalidOperationException(
+                "Cannot create an effect without an owner. Make sure effects are created within a reactive context (component or other effect). Use CreateRootEffect for top-level effects.");
+        }
 
         // Schedule initial execution
         _scheduler.EnqueueComputation(effectNode);
         _scheduler.ScheduleFlush();
     }
     
+    /// <summary>
+    /// Creates a root-level effect that runs when dependencies change
+    /// </summary>
+    public void CreateRootEffect(Action effect)
+    {
+        ThrowIfDisposed();
+        if (effect == null) throw new ArgumentNullException(nameof(effect));
+
+        var effectNode = new Effect(effect, _context, _scheduler);
+        effectNode.SetOwner(_rootOwner);
+        
+        // Schedule initial execution
+        _scheduler.EnqueueComputation(effectNode);
+        _scheduler.ScheduleFlush();
+    }
+
+
     /// <summary>
     /// Registers a cleanup function to be called before the current effect re-runs
     /// or when the component unmounts
@@ -672,34 +720,35 @@ internal class ReactiveSystem
     {
         ThrowIfDisposed();
         if (cleanup == null) throw new ArgumentNullException(nameof(cleanup));
-        
-        var currentOwner = _ownerContext.Current;
+
+        var currentOwner = _context.CurrentOwner;
         if (currentOwner == null)
         {
-            throw new InvalidOperationException("OnCleanup must be called within a reactive context (component or effect)");
+            throw new InvalidOperationException(
+                "OnCleanup must be called within a reactive context (component or effect)");
         }
-        
+
         currentOwner.AddCleanup(cleanup);
     }
-    
+
     /// <summary>
     /// Pushes a cleanup owner onto the owner stack
     /// </summary>
-    internal void PushOwner(ICleanupOwner owner)
+    internal void PushOwner(IReactiveOwner owner)
     {
         ThrowIfDisposed();
         if (owner == null) throw new ArgumentNullException(nameof(owner));
-        
-        _ownerContext.Push(owner);
+
+        _context.Push(owner);
     }
-    
+
     /// <summary>
     /// Pops the current cleanup owner from the owner stack
     /// </summary>
     internal void PopOwner()
     {
         ThrowIfDisposed();
-        _ownerContext.Pop();
+        _context.Pop<IReactiveOwner>();
     }
 
     /// <summary>
@@ -738,7 +787,6 @@ internal class ReactiveSystem
         _disposables.Clear();
         _scheduler.Clear();
         _context.Dispose();
-        _ownerContext.Dispose();
 
         GC.SuppressFinalize(this);
     }

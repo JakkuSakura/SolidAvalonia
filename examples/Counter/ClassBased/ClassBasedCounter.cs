@@ -22,7 +22,7 @@ public class ClassBasedCounter : Component
     /// Creates a component that displays the current count and its doubled value
     /// with reactive styling based on the count value.
     /// </summary>
-    private Component<TextBlock> CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
+    private Component CreateCountDisplay(Func<int> count, Func<int> doubledCount, Func<bool> isPositive)
     {
         return Reactive(() => new TextBlock()
             .Text(() => $"Count: {count()}, Double: {doubledCount()}")
@@ -37,7 +37,7 @@ public class ClassBasedCounter : Component
     /// <summary>
     /// Creates a component that displays the last update timestamp.
     /// </summary>
-    private Component<TextBlock> CreateLastUpdateDisplay(Func<string> lastUpdateTime)
+    private Component CreateLastUpdateDisplay(Func<string> lastUpdateTime)
     {
         return Reactive(() => new TextBlock()
             .Text(() => $"Last Updated: {lastUpdateTime()}")
@@ -97,9 +97,9 @@ public class ClassBasedCounter : Component
     /// <summary>
     /// Creates a component that displays the counter's status (even/odd, positive/negative).
     /// </summary>
-    private Component<TextBlock> CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
+    private Reactive CreateStatusIndicator(Func<bool> isEven, Func<bool> isPositive, Func<int> count)
     {
-        return new Component<TextBlock>(() =>
+        return Reactive(() =>
             {
                 OnCleanup(() => Console.WriteLine("StatusIndicator unmounted"));
                 return new TextBlock()

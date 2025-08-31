@@ -88,14 +88,7 @@ public class ExamplesCatalog : ContentControl
             Padding = new Thickness(10)
         });
 
-        // Dynamic List Example
-        tabControl.Items.Add(new TabItem
-        {
-            Header = "Dynamic List",
-            Content = CounterExamples.DynamicListExample(),
-            Padding = new Thickness(10)
-        });
-        
+
         // Effect Cleanup Example - Wrap in a Component for proper lifecycle management
         tabControl.Items.Add(new TabItem
         {
@@ -103,7 +96,7 @@ public class ExamplesCatalog : ContentControl
             Content = CleanupTestExample.EffectCleanupExample(),
             Padding = new Thickness(10)
         });
-        
+
         // Nested Components Cleanup Example - Wrap in a Component for proper lifecycle management
         tabControl.Items.Add(new TabItem
         {
