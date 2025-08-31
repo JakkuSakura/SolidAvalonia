@@ -160,10 +160,10 @@ internal class ReactiveSystem
     /// <summary>
     /// Pops the current cleanup owner from the owner stack
     /// </summary>
-    internal void PopOwner()
+    internal IReactiveOwner? PopOwner()
     {
         ThrowIfDisposed();
-        Context.Pop<IReactiveOwner>();
+        return (IReactiveOwner?)Context.Pop();
     }
 
     /// <summary>

@@ -42,39 +42,6 @@ internal class ReactiveContext : IDisposable
         return _contextStack.Count > 0 ? _contextStack.Pop() : null;
     }
     
-    /// <summary>
-    /// Pops the most recently pushed context of a specific type
-    /// </summary>
-    public T? Pop<T>() where T : class
-    {
-        if (_contextStack.Count == 0) return null;
-        
-        // Find the most recent context of type T
-        int popCount = 0;
-        object? current = null;
-        Stack<object> tempStack = new();
-        
-        while (_contextStack.Count > 0)
-        {
-            var item = _contextStack.Pop();
-            if (current == null && item is T)
-            {
-                current = item;
-                break;
-            }
-            
-            tempStack.Push(item);
-            popCount++;
-        }
-        
-        // Restore items that were popped
-        while (tempStack.Count > 0)
-        {
-            _contextStack.Push(tempStack.Pop());
-        }
-        
-        return current as T;
-    }
     
     /// <summary>
     /// Clears all context

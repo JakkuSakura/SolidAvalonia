@@ -40,9 +40,7 @@ internal class Effect : Computation
 
             // Track this computation
             Context.Push(this);
-
-            // Push this effect as current owner for cleanup registration
-            ReactiveSystem.Instance.Context.Push(this);
+            
 
             try
             {
@@ -62,9 +60,6 @@ internal class Effect : Computation
             finally
             {
                 Context.Pop();
-
-                // Pop this effect as current owner
-                ReactiveSystem.Instance.Context.Pop<IReactiveOwner>();
             }
 
             lock (SyncRoot)

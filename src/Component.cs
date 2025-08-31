@@ -14,7 +14,6 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
     internal Func<Control>? _factory;
     private readonly List<Action> _disposables = new();
     private readonly List<ReactiveNode> _ownedNodes = new();
-    private bool _isOwnerActive;
 
     #region Constructors
 
@@ -62,7 +61,6 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
     {
         // Push this component as the current owner before initialization
         ReactiveSystem.Instance.PushOwner(this);
-        _isOwnerActive = true;
     }
 
     protected override void OnAfterInitialized()
@@ -70,9 +68,11 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
         base.OnAfterInitialized();
 
         // Pop this component as the current owner after initialization
-        if (!_isOwnerActive) return;
-        ReactiveSystem.Instance.PopOwner();
-        _isOwnerActive = false;
+        var owner = ReactiveSystem.Instance.PopOwner();
+        if (!ReferenceEquals(owner, this))
+        {
+            throw new InvalidOperationException("Reactive owner stack corrupted.");
+        }
     }
 
     /// <summary>
@@ -122,29 +122,25 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
     {
         base.OnAttachedToLogicalTree(e);
     }
+
     protected override void OnDetachedFromLogicalTree(LogicalTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromLogicalTree(e);
     }
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
     }
+
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
     }
 
 
-
     public void Dispose()
     {
-        if (_isOwnerActive)
-        {
-            ReactiveSystem.Instance.PopOwner();
-            _isOwnerActive = false;
-        }
-
         RunCleanup();
     }
 
