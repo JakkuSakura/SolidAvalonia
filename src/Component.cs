@@ -8,9 +8,9 @@ namespace SolidAvalonia;
 /// Base class for reactive components that can be both inherited from or used functionally.
 /// Provides fine-grained reactivity for building reactive UI components.
 /// </summary>
-public class Component : ViewBase, ISolid, IDisposable, IReactiveOwner
+public class Component : ViewBase, ISolid, IReactiveOwner
 {
-    private readonly Func<Control>? _factory;
+    internal Func<Control>? _factory;
     private readonly List<Action> _disposables = new();
     private readonly List<ReactiveNode> _ownedNodes = new();
     private bool _isOwnerActive;
@@ -21,9 +21,13 @@ public class Component : ViewBase, ISolid, IDisposable, IReactiveOwner
     /// Creates a new component that uses the abstract Build method.
     /// Use this constructor when inheriting from Component.
     /// </summary>
-    protected Component() : base(true)
+    protected Component(bool deferredLoading = false) : base(deferredLoading)
     {
         _factory = null;
+        if (deferredLoading) return;
+
+        OnCreatedCore();
+        Initialize();
     }
 
     /// <summary>
@@ -31,9 +35,11 @@ public class Component : ViewBase, ISolid, IDisposable, IReactiveOwner
     /// Use this constructor for functional components.
     /// </summary>
     /// <param name="factory">The function that creates the control.</param>
-    public Component(Func<Control> factory) : this()
+    public Component(Func<Control> factory) : base(true)
     {
         _factory = factory;
+        OnCreatedCore();
+        Initialize();
     }
 
     #endregion

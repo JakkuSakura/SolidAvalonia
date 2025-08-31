@@ -9,8 +9,9 @@ public class Reactive : Component
 {
     private bool _isInitialized;
 
-    public Reactive(Func<Control> func) : base(func)
+    public Reactive(Func<Control> func) : base(true)
     {
+        _factory = func;
         Register();
     }
 

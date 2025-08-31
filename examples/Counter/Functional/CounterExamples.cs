@@ -31,7 +31,7 @@ public static class CounterExamples
     public static Control AdvancedCounter(int initialCount = 0, int initialStep = 1)
     {
         // Wrap the entire component in a Component to provide reactive context
-        Func<Border> factory = () =>
+        return Component(() =>
         {
             // Create reactive state
             var (count, setCount) = CreateSignal(initialCount);
@@ -78,7 +78,7 @@ public static class CounterExamples
                                 .HorizontalAlignment(HorizontalAlignment.Center),
 
                             // Display the count value reactively
-                            Component(() => new TextBlock()
+                            Reactive(() => new TextBlock()
                                 .Text(() => $"Count: {count()}, Double: {doubledCount()}")
                                 .FontSize(16)
                                 .TextAlignment(TextAlignment.Center)
@@ -87,7 +87,7 @@ public static class CounterExamples
                             ),
 
                             // Show last update time
-                            Component(() => new TextBlock()
+                            Reactive(() => new TextBlock()
                                 .Text(() => $"Last Updated: {lastUpdateTime()}")
                                 .FontSize(14)
                                 .TextAlignment(TextAlignment.Center)
@@ -139,7 +139,7 @@ public static class CounterExamples
                                 ),
 
                             // Status indicator
-                            Component(() => new TextBlock()
+                            Reactive(() => new TextBlock()
                                 .Text(() =>
                                 {
                                     var evenText = isEven() ? "Even" : "Odd";
@@ -153,8 +153,7 @@ public static class CounterExamples
                             )
                         )
                 );
-        };
-        return Solid.Component(factory);
+        });
     }
 
     /// <summary>

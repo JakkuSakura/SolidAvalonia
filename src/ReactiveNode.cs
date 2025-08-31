@@ -10,7 +10,7 @@ public abstract class ReactiveNode : IDisposable
     protected readonly object SyncRoot = new();
     public bool Disposed;
     public long Version { get; protected set; }
-    internal IReactiveOwner? Owner { get; private set; }
+    public IReactiveOwner? Owner { get; private set; }
         
     /// <summary>
     /// Sets the owner of this reactive node

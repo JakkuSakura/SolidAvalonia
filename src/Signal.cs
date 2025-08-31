@@ -6,7 +6,7 @@ namespace SolidAvalonia;
 public class Signal<T> : ReactiveNode
 {
     private T _value;
-    private readonly HashSet<ReactiveSystem.Computation> _observers = new();
+    private readonly HashSet<Computation> _observers = new();
     internal Signal(T initialValue)
     {
         _value = initialValue;
@@ -18,7 +18,7 @@ public class Signal<T> : ReactiveNode
         lock (SyncRoot)
         {
             // Register dependency if we're inside a computation
-            var current = ReactiveSystem.Instance._context.CurrentComputation;
+            var current = ReactiveSystem.Instance.Context.CurrentComputation;
             if (current is not { Disposed: false }) return _value;
             _observers.Add(current);
             current.AddDependency(this, Version);
@@ -29,7 +29,7 @@ public class Signal<T> : ReactiveNode
 
     public void Set(T value)
     {
-        HashSet<ReactiveSystem.Computation>? observersToNotify = null;
+        HashSet<Computation>? observersToNotify = null;
 
         lock (SyncRoot)
         {
@@ -41,7 +41,7 @@ public class Signal<T> : ReactiveNode
 
             if (_observers.Count > 0)
             {
-                observersToNotify = new HashSet<ReactiveSystem.Computation>(_observers);
+                observersToNotify = new HashSet<Computation>(_observers);
             }
         }
 
@@ -54,14 +54,14 @@ public class Signal<T> : ReactiveNode
             }
 
             // Only schedule flush if not in a batch
-            if (!ReactiveSystem.Instance._context.IsBatching)
+            if (!ReactiveSystem.Instance.Context.IsBatching)
             {
-                ReactiveSystem.Instance._scheduler.ScheduleFlush();
+                ReactiveSystem.Instance.Scheduler.ScheduleFlush();
             }
         }
     }
 
-    internal void RemoveObserver(ReactiveSystem.Computation computation)
+    internal void RemoveObserver(Computation computation)
     {
         lock (SyncRoot)
         {

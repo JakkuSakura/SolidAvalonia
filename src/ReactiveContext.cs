@@ -11,8 +11,8 @@ internal class ReactiveContext : IDisposable
     /// <summary>
     /// Gets the current computation (if any)
     /// </summary>
-    public ReactiveSystem.Computation? CurrentComputation => 
-        _contextStack.FirstOrDefault(x => x is ReactiveSystem.Computation) as ReactiveSystem.Computation;
+    public Computation? CurrentComputation => 
+        _contextStack.FirstOrDefault(x => x is Computation) as Computation;
     
     /// <summary>
     /// Gets the current reactive owner (if any)
