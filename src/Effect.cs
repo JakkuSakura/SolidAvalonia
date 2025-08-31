@@ -100,6 +100,4 @@ internal class Effect : Computation
         RunCleanup();
         base.Dispose();
     }
-
-    public static Effect? Current => ReactiveSystem.Instance.Context.CurrentComputation as Effect;
 }
