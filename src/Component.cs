@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.LogicalTree;
 using Avalonia.Markup.Declarative;
 
 namespace SolidAvalonia;
@@ -117,6 +118,14 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
     }
 
 
+    protected override void OnAttachedToLogicalTree(LogicalTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToLogicalTree(e);
+    }
+    protected override void OnDetachedFromLogicalTree(LogicalTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromLogicalTree(e);
+    }
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
@@ -125,6 +134,7 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
     {
         base.OnDetachedFromVisualTree(e);
     }
+
 
 
     public void Dispose()
