@@ -2,9 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Counter.ClassBased;
-using Counter.Functional;
-using Counter.Composition;
+using Counter.CoreConcepts;
+using Counter.UIPatterns;
+using Counter.Advanced;
 
 namespace Counter;
 
@@ -26,37 +26,37 @@ public class ExamplesCatalog : ContentControl
             Margin = new Thickness(5)
         };
 
-        // Class-based Examples
-        var classBasedTab = new TabItem
+        // Core Concepts Tab - Fundamentals of reactive programming
+        var coreConcepts = new TabItem
         {
-            Header = "Class-based",
-            Content = new ClassBasedCounter(),
+            Header = "Core Concepts",
+            Content = CreateCoreConceptsTabs(),
             Padding = new Thickness(10)
         };
-        tabControl.Items.Add(classBasedTab);
+        tabControl.Items.Add(coreConcepts);
 
-        // Functional Examples
-        var functionalTab = new TabItem
+        // UI Patterns Tab - Common UI patterns and techniques
+        var uiPatterns = new TabItem
         {
-            Header = "Functional",
-            Content = CreateFunctionalExamplesTabs(),
+            Header = "UI Patterns",
+            Content = CreateUIPatternsTab(),
             Padding = new Thickness(10)
         };
-        tabControl.Items.Add(functionalTab);
+        tabControl.Items.Add(uiPatterns);
 
-        // Composition Examples
-        var compositionTab = new TabItem
+        // Advanced Tab - More complex techniques and optimizations
+        var advanced = new TabItem
         {
-            Header = "Composition",
-            Content = CreateCompositionExamplesTabs(),
+            Header = "Advanced",
+            Content = CreateAdvancedTab(),
             Padding = new Thickness(10)
         };
-        tabControl.Items.Add(compositionTab);
+        tabControl.Items.Add(advanced);
 
         return tabControl;
     }
 
-    private TabControl CreateFunctionalExamplesTabs()
+    private TabControl CreateCoreConceptsTabs()
     {
         var tabControl = new TabControl
         {
@@ -64,51 +64,61 @@ public class ExamplesCatalog : ContentControl
             Margin = new Thickness(5)
         };
 
-        // Advanced Counter Example
+        // Signal Example
         tabControl.Items.Add(new TabItem
         {
-            Header = "Advanced Counter",
-            Content = CounterExamples.AdvancedCounter(),
+            Header = "Signals",
+            Content = SignalExample.SimpleCounter(),
             Padding = new Thickness(10)
         });
 
-        // Simple Counter Example
+        // Memo Example
         tabControl.Items.Add(new TabItem
         {
-            Header = "Simple Counter",
-            Content = CounterExamples.SimpleCounter(),
+            Header = "Memos",
+            Content = MemoExample.DerivedValues(),
             Padding = new Thickness(10)
         });
+
+        // Effect Example
+        tabControl.Items.Add(new TabItem
+        {
+            Header = "Effects",
+            Content = EffectExample.SideEffects(),
+            Padding = new Thickness(10)
+        });
+
+        return tabControl;
+    }
+
+    private TabControl CreateUIPatternsTab()
+    {
+        var tabControl = new TabControl
+        {
+            TabStripPlacement = Dock.Top,
+            Margin = new Thickness(5)
+        };
 
         // Conditional Rendering Example
         tabControl.Items.Add(new TabItem
         {
             Header = "Conditional Rendering",
-            Content = CounterExamples.ConditionalRenderingExample(),
+            Content = ConditionalRenderingExample.ConditionalRendering(),
             Padding = new Thickness(10)
         });
 
-
-        // Effect Cleanup Example - Wrap in a Component for proper lifecycle management
+        // Component Composition Example
         tabControl.Items.Add(new TabItem
         {
-            Header = "Effect Cleanup",
-            Content = CleanupTestExample.EffectCleanupExample(),
-            Padding = new Thickness(10)
-        });
-
-        // Nested Components Cleanup Example - Wrap in a Component for proper lifecycle management
-        tabControl.Items.Add(new TabItem
-        {
-            Header = "Nested Cleanup",
-            Content = CleanupTestExample.NestedComponentsExample(),
+            Header = "Component Composition",
+            Content = CompositionExample.ComponentComposition(),
             Padding = new Thickness(10)
         });
 
         return tabControl;
     }
 
-    private TabControl CreateCompositionExamplesTabs()
+    private TabControl CreateAdvancedTab()
     {
         var tabControl = new TabControl
         {
@@ -116,27 +126,27 @@ public class ExamplesCatalog : ContentControl
             Margin = new Thickness(5)
         };
 
-        // Signal Functions Example
+        // Class-Based Example
         tabControl.Items.Add(new TabItem
         {
-            Header = "Signal Functions",
-            Content = SignalCompositionExamples.SignalFunctionExample(),
+            Header = "Class-based Component",
+            Content = new ClassBasedCounter(),
             Padding = new Thickness(10)
         });
 
-        // Shared Signals Example
+        // Cleanup Example
         tabControl.Items.Add(new TabItem
         {
-            Header = "Shared Signals",
-            Content = SignalCompositionExamples.SharedSignalsExample(),
+            Header = "Lifecycle & Cleanup",
+            Content = CleanupExample.LifecycleManagement(),
             Padding = new Thickness(10)
         });
 
-        // Theme Toggle Example
+        // Throttling Example
         tabControl.Items.Add(new TabItem
         {
-            Header = "Theme Toggle",
-            Content = SignalCompositionExamples.ThemeToggleExample(),
+            Header = "Throttling & Debouncing",
+            Content = ThrottlingExample.PerformanceOptimizations(),
             Padding = new Thickness(10)
         });
 
