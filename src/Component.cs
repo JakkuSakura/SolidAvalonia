@@ -7,13 +7,17 @@ namespace SolidAvalonia;
 
 /// <summary>
 /// Base class for reactive components that can be both inherited from or used functionally.
-/// Provides fine-grained reactivity for building reactive UI components.
+/// Component is a ReactiveNode that provides fine-grained reactivity for building UI components.
+/// Components can own other reactive nodes and manage their lifecycle.
 /// </summary>
-public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
+public class Component : ViewBase, ISolid, IReactiveNode
 {
     internal Func<Control>? _factory;
-    private readonly List<Action> _disposables = new();
-    private readonly List<ReactiveNode> _ownedNodes = new();
+    private readonly List<IReactiveNode> _ownedNodes = new();
+    protected readonly object SyncRoot = new();
+
+    public bool Disposed { get; private set; }
+
 
     #region Constructors
 
@@ -80,29 +84,16 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
     /// </summary>
     private void RunCleanup()
     {
-        // Create a copy of the disposables to avoid issues if dispose methods modify the list
-        var disposablesToDispose = new List<Action>(_disposables);
-        _disposables.Clear();
+        List<IReactiveNode> ownedNodes;
 
-        // Create a copy of owned nodes and clear the list
-        var ownedNodes = new List<ReactiveNode>(_ownedNodes);
-        _ownedNodes.Clear();
-
-        // Dispose all registered disposables
-        foreach (var disposable in disposablesToDispose)
+        lock (SyncRoot)
         {
-            try
-            {
-                disposable();
-            }
-            catch (Exception ex)
-            {
-                // Log the error but continue with other disposables
-                Console.WriteLine($"Error in cleanup disposable: {ex}");
-            }
+            ownedNodes = new List<IReactiveNode>(_ownedNodes);
+            _ownedNodes.Clear();
         }
 
-        // Dispose all owned reactive nodes
+
+        // Dispose all owned nodes
         foreach (var node in ownedNodes)
         {
             try
@@ -141,22 +132,31 @@ public class Component : ViewBase, ISolid, IReactiveOwner, IDisposable
 
     public void Dispose()
     {
+        lock (SyncRoot)
+        {
+            if (Disposed) return;
+            Disposed = true;
+        }
+
         RunCleanup();
     }
 
-    public void AddCleanup(Action cleanup)
+
+    public void AddOwnedNode(IReactiveNode node)
     {
-        _disposables.Add(cleanup);
+        lock (SyncRoot)
+        {
+            if (Disposed) return;
+            _ownedNodes.Add(node);
+        }
     }
 
-    public void AddOwnedNode(ReactiveNode node)
+    public void RemoveOwnedNode(IReactiveNode node)
     {
-        _ownedNodes.Add(node);
-    }
-
-    public void RemoveOwnedNode(ReactiveNode node)
-    {
-        _ownedNodes.Remove(node);
+        lock (SyncRoot)
+        {
+            _ownedNodes.Remove(node);
+        }
     }
 
     #endregion

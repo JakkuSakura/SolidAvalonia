@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace SolidAvalonia;
 
 /// <summary>
@@ -24,6 +27,7 @@ internal class ReactiveSystem
     /// <summary>
     /// Creates a reactive signal with getter and setter.
     /// Signal changes trigger updates to reactive UI.
+    /// Signals can be called from anywhere, but must be created within a Component.
     /// </summary>
     public (Func<T>, Action<T>) CreateSignal<T>(T initialValue)
     {
@@ -39,10 +43,6 @@ internal class ReactiveSystem
                 "Cannot create a signal without an owner. Make sure signals are created within a reactive context (component).");
         }
 
-        // Ensure the owner is a Component and not a Computation
-        if (currentOwner is not Component)
-            throw new InvalidOperationException(
-                "Cannot create a signal with a Computation as owner. Signals must be owned by Components.");
 
         signal.SetOwner(currentOwner);
 
@@ -51,7 +51,7 @@ internal class ReactiveSystem
 
 
     // CreateRef method removed - use CreateSignal instead
-    
+
     /// <summary>
     /// Creates a computed value that automatically updates when dependencies change
     /// </summary>
@@ -73,7 +73,7 @@ internal class ReactiveSystem
         {
             // Throw exception if no owner is available
             throw new InvalidOperationException(
-                "Cannot create a memo without an owner. Make sure memos are created within a reactive context (component or computation)");
+                "Cannot create a memo without an owner. Make sure memos are created within a Component");
         }
 
         return memo.Get;
@@ -96,7 +96,7 @@ internal class ReactiveSystem
         {
             // Throw exception if no owner is available
             throw new InvalidOperationException(
-                "Cannot create an effect without an owner. Make sure effects are created within a reactive context (component or computation). Use CreateRootEffect for top-level effects.");
+                "Cannot create an effect without an owner. Make sure effects are created within a Component");
         }
 
         // Both Component and Computation can own Effects
@@ -106,30 +106,10 @@ internal class ReactiveSystem
         Scheduler.EnqueueComputation(effectNode);
         Scheduler.ScheduleFlush();
     }
-
-
-    /// <summary>
-    /// Creates a root-level effect that is not owned by any component or other effect.
-    /// Use this for application-level effects that outlive components.
-    /// </summary>
-    public void CreateRootEffect(Action effect)
-    {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(effect);
-
-        var effectNode = new Effect(effect, Context, Scheduler);
-        
-        // Root effects have no owner
-        // They will live until the reactive system is disposed
-
-        // Schedule initial execution
-        Scheduler.EnqueueComputation(effectNode);
-        Scheduler.ScheduleFlush();
-    }
-
+    
     /// <summary>
     /// Registers a cleanup function to be called before the current effect re-runs
-    /// or when the component unmounts
+    /// or when the component unmounts. Cleanups are represented as leaf nodes.
     /// </summary>
     public void OnCleanup(Action cleanup)
     {
@@ -143,13 +123,14 @@ internal class ReactiveSystem
                 "OnCleanup must be called within a reactive context (component or effect)");
         }
 
-        currentOwner.AddCleanup(cleanup);
+        var cleanupNode = new CleanupNode(cleanup);
+        currentOwner.AddOwnedNode(cleanupNode);
     }
 
     /// <summary>
     /// Pushes a cleanup owner onto the owner stack
     /// </summary>
-    internal void PushOwner(IReactiveOwner owner)
+    internal void PushOwner(IReactiveNode owner)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(owner);
@@ -160,10 +141,10 @@ internal class ReactiveSystem
     /// <summary>
     /// Pops the current cleanup owner from the owner stack
     /// </summary>
-    internal IReactiveOwner? PopOwner()
+    internal IReactiveNode? PopOwner()
     {
         ThrowIfDisposed();
-        return (IReactiveOwner?)Context.Pop();
+        return (IReactiveNode?)Context.Pop();
     }
 
     /// <summary>

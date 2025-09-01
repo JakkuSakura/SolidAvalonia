@@ -4,18 +4,23 @@ namespace SolidAvalonia;
 
 /// <summary>
 /// Base class for computations (memos and effects).
-/// Computation can be a dependency but not an owner of other reactive nodes.
+/// Computation is a ReactiveNode that can track dependencies and be re-executed when its dependencies change.
 /// </summary>
-internal abstract class Computation : ReactiveNode, IReactiveOwner
+internal abstract class Computation : IReactiveNode
 {
     protected readonly ReactiveContext Context;
     protected readonly Scheduler Scheduler;
-    protected readonly Dictionary<ReactiveNode, long> Dependencies = new();
+    protected readonly Dictionary<IReactiveNode, long> Dependencies = new();
     protected readonly List<Action> _cleanupActions = new();
-    protected readonly List<ReactiveNode> _ownedNodes = new();
+    protected readonly List<IReactiveNode> _ownedNodes = new();
+    protected readonly object SyncRoot = new();
     protected bool IsDirty = true;
     protected bool IsRunning;
     protected bool HasRun;
+    
+    public bool Disposed { get; protected set; }
+    public long Version { get; protected set; }
+    public IReactiveNode? Owner { get; private set; }
 
     protected Computation(ReactiveContext context, Scheduler scheduler)
     {
@@ -23,8 +28,8 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
         Scheduler = scheduler;
     }
 
-    // Computation cannot be an owner of nodes, but we implement IReactiveOwner for cleanup purposes
-    public void AddOwnedNode(ReactiveNode node)
+    // Computations are reactive nodes that can own other nodes, track dependencies, and be re-executed
+    public void AddOwnedNode(IReactiveNode node)
     {
         lock (SyncRoot)
         {
@@ -34,7 +39,7 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
         }
     }
 
-    public void RemoveOwnedNode(ReactiveNode node)
+    public void RemoveOwnedNode(IReactiveNode node)
     {
         lock (SyncRoot)
         {
@@ -42,7 +47,8 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
         }
     }
 
-    public virtual void AddCleanup(Action cleanup)
+    // This method is kept for compatibility - internally we now use CleanupNode
+    internal virtual void AddCleanup(Action cleanup)
     {
         if (cleanup == null) throw new ArgumentNullException(nameof(cleanup));
 
@@ -85,7 +91,7 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
         }
     }
 
-    public void AddDependency(ReactiveNode node, long version)
+    public void AddDependency(IReactiveNode node, long version)
     {
         lock (SyncRoot)
         {
@@ -129,7 +135,7 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
 
     public abstract void Execute();
 
-    public override void Dispose()
+    public virtual void Dispose()
     {
         lock (SyncRoot)
         {
@@ -141,7 +147,7 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
             ClearDependencies();
 
             // Dispose all owned nodes
-            var ownedNodesCopy = new List<ReactiveNode>(_ownedNodes);
+            var ownedNodesCopy = new List<IReactiveNode>(_ownedNodes);
             _ownedNodes.Clear();
 
             // Dispose owned nodes outside the lock
@@ -152,6 +158,23 @@ internal abstract class Computation : ReactiveNode, IReactiveOwner
 
             // Remove from owner
             SetOwner(null);
+        }
+    }
+    
+    public void SetOwner(IReactiveNode? owner)
+    {
+        lock (SyncRoot)
+        {
+            if (Disposed) return;
+                
+            // Remove from old owner if exists
+            Owner?.RemoveOwnedNode(this);
+                
+            // Set new owner
+            Owner = owner;
+                
+            // Add to new owner if not null
+            owner?.AddOwnedNode(this);
         }
     }
 }

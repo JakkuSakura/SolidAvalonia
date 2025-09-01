@@ -6,19 +6,19 @@ namespace SolidAvalonia;
 /// </summary>
 internal class ReactiveContext : IDisposable
 {
-    private readonly Stack<object> _contextStack = new();
+    private readonly Stack<IReactiveNode> _stack = new();
     
     /// <summary>
     /// Gets the current computation (if any)
     /// </summary>
     public Computation? CurrentComputation => 
-        _contextStack.FirstOrDefault(x => x is Computation) as Computation;
+        _stack.FirstOrDefault(x => x is Computation) as Computation;
     
     /// <summary>
     /// Gets the current reactive owner (if any)
     /// </summary>
-    public IReactiveOwner? CurrentOwner => 
-        _contextStack.FirstOrDefault(x => x is IReactiveOwner) as IReactiveOwner;
+    public IReactiveNode? CurrentOwner =>  _stack.Count > 0 ?
+        _stack.Peek() : null;
     
     /// <summary>
     /// Flag indicating whether batching is in progress
@@ -28,10 +28,10 @@ internal class ReactiveContext : IDisposable
     /// <summary>
     /// Pushes a context object onto the stack
     /// </summary>
-    public void Push(object context)
+    public void Push(IReactiveNode node)
     {
-        if (context == null) throw new ArgumentNullException(nameof(context));
-        _contextStack.Push(context);
+        ArgumentNullException.ThrowIfNull(node);
+        _stack.Push(node);
     }
     
     /// <summary>
@@ -39,14 +39,14 @@ internal class ReactiveContext : IDisposable
     /// </summary>
     public object? Pop()
     {
-        return _contextStack.Count > 0 ? _contextStack.Pop() : null;
+        return _stack.Count > 0 ? _stack.Pop() : null;
     }
     
     
     /// <summary>
     /// Clears all context
     /// </summary>
-    public void Clear() => _contextStack.Clear();
+    public void Clear() => _stack.Clear();
     
     /// <summary>
     /// Disposes of the context

@@ -17,7 +17,7 @@ public static class Solid
     /// <returns>A tuple containing the getter and setter functions.</returns>
     public static (Func<T>, Action<T>) CreateSignal<T>(T initialValue) =>
         ReactiveSystem.Instance.CreateSignal(initialValue);
-        
+
     // CreateRef method removed - use CreateSignal instead
 
 
@@ -37,14 +37,6 @@ public static class Solid
     /// <param name="effect">The effect function to run.</param>
     public static void CreateEffect(Action effect) =>
         ReactiveSystem.Instance.CreateEffect(effect);
-
-    /// <summary>
-    /// Creates a root-level effect that is not owned by any component or other effect.
-    /// Use this for application-level effects that outlive components.
-    /// </summary>
-    /// <param name="effect">The effect function to run.</param>
-    public static void CreateRootEffect(Action effect) =>
-        ReactiveSystem.Instance.CreateRootEffect(effect);
 
 
     /// <summary>
