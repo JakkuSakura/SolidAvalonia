@@ -64,12 +64,32 @@ public class ExamplesCatalog : ContentControl
             Margin = new Thickness(5)
         };
 
-        // Signal Example
+        // Signal Examples
+        var signalTab = new TabControl
+        {
+            TabStripPlacement = Dock.Bottom,
+            Margin = new Thickness(5)
+        };
+        
+        signalTab.Items.Add(new TabItem
+        {
+            Header = "Basic Signals",
+            Content = SignalExample.SimpleCounter(),
+            Padding = new Thickness(5)
+        });
+        
+        signalTab.Items.Add(new TabItem
+        {
+            Header = "Signal Binding",
+            Content = SignalExample.SignalBindingExample(),
+            Padding = new Thickness(5)
+        });
+        
         tabControl.Items.Add(new TabItem
         {
             Header = "Signals",
-            Content = SignalExample.SimpleCounter(),
-            Padding = new Thickness(10)
+            Content = signalTab,
+            Padding = new Thickness(5)
         });
 
         // Memo Example
