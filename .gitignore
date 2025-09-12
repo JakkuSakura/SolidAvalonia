@@ -54,3 +54,5 @@ TestResult.xml
 nunit-*.xml
 
 *.sln.*.user
+
+.idea/
