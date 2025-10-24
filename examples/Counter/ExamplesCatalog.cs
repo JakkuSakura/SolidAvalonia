@@ -2,21 +2,19 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Counter.Advanced;
 using Counter.CoreConcepts;
 using Counter.UIPatterns;
-using Counter.Advanced;
+using SolidAvalonia;
 
 namespace Counter;
 
 /// <summary>
 /// A catalog view that organizes all SolidAvalonia examples in a structured way.
 /// </summary>
-public class ExamplesCatalog : ContentControl
+public class ExamplesCatalog : Component
 {
-    public ExamplesCatalog()
-    {
-        this.Content = CreateExampleTabs();
-    }
+    protected override object Build() => CreateExampleTabs();
 
     private TabControl CreateExampleTabs()
     {
