@@ -270,3 +270,32 @@ Contributions are welcome! Feel free to submit issues or pull requests.
 ## License
 
 MIT License
+
+## Publishing
+
+Use the helper script to build, pack, and publish to NuGet:
+
+```bash
+# 1) Export your NuGet API key (or pass via --api-key)
+export NUGET_API_KEY=your_nuget_org_api_key
+
+# 2) Build + pack + publish (default to nuget.org)
+scripts/publish-nuget.sh --version 0.1.0
+
+# Build/pack without publishing
+scripts/publish-nuget.sh --version 0.1.0 --no-push
+
+# Dry-run (show commands only)
+scripts/publish-nuget.sh --version 0.1.0 --dry-run
+```
+
+Options:
+- `--version` overrides the package version (or read from `SolidAvalonia.csproj` if present).
+- `--api-key` sets the API key (or use `NUGET_API_KEY`).
+- `--source` sets the NuGet source (defaults to `https://api.nuget.org/v3/index.json`).
+- `--no-push` to only build and pack.
+- `--dry-run` to print commands without executing.
+
+Notes:
+- The script passes common NuGet metadata via MSBuild properties (license=MIT, readme=README.md). You can define these in `SolidAvalonia.csproj` to override.
+- Output packages are written to `artifacts/nuget/`.
