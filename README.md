@@ -1,5 +1,8 @@
 # SolidAvalonia
 
+[![NuGet](https://img.shields.io/nuget/v/SolidAvalonia?logo=nuget)](https://www.nuget.org/packages/SolidAvalonia)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/SolidAvalonia)](https://www.nuget.org/packages/SolidAvalonia)
+
 A library for building reactive Avalonia UI applications using the SolidJS programming model. SolidAvalonia brings the elegance and simplicity of SolidJS reactive patterns to Avalonia UI development.
 
 SolidAvalonia is built on top of [Avalonia.Markup.Declarative](https://github.com/AvaloniaUI/Avalonia.Markup.Declarative), which means all existing classes and extension methods from that library are available for use. For reactive components, signals should be accessed inside the `Reactive()` method and using the extension methods provided for markup classes.
